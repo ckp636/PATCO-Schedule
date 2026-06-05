@@ -40,3 +40,4 @@ jobs:
             git commit -m "chore: refresh schedule $(date -u +%Y-%m-%d)"
             git push
           fi
+# end of workflow
