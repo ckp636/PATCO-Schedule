@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+
+# Pipeline — raw PDFs and SQLite are audit artifacts, not source
+data/audit/*.pdf
+data/audit/*.db
+
+# Keep these in git (pipeline output & change-detection marker)
+!data/public/schedule.json
+!data/audit/.last_digest
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+web/.env*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
