@@ -1,8 +1,9 @@
-import { readFile } from "fs/promises";
-import path from "path";
 import TripPlanner from "@/components/TripPlanner";
 
 export const revalidate = 3600;
+
+const SCHEDULE_URL =
+  "https://raw.githubusercontent.com/ckp636/PATCO-Schedule/master/data/public/schedule.json";
 
 interface Stop {
   station: string;
@@ -23,9 +24,9 @@ interface ScheduleData {
 
 async function getSchedule(): Promise<ScheduleData | null> {
   try {
-    const filePath = path.join(process.cwd(), "..", "data", "public", "schedule.json");
-    const raw = await readFile(filePath, "utf-8");
-    return JSON.parse(raw) as ScheduleData;
+    const res = await fetch(SCHEDULE_URL, { next: { revalidate: 3600 } });
+    if (!res.ok) return null;
+    return res.json() as Promise<ScheduleData>;
   } catch {
     return null;
   }
