@@ -132,8 +132,8 @@ function CalDay({ info, selected, onClick }: { info: CalInfo; selected: string; 
       ...base, cursor:"pointer",
       background:   sel ? "#E6F1FB" : "transparent",
       color:        sel ? "#0C447C" : info.today ? "#000" : "#333",
-      fontWeight:   info.today ? 500 : 400,
-      border:       `0.5px solid ${sel ? "#378ADD" : info.today ? "#aaa" : "transparent"}`,
+      fontWeight:   info.today ? 600 : 400,
+      border:       sel ? "1.5px solid #378ADD" : info.today ? "2px solid #333" : "1px solid transparent",
     }}>
       {info.d}
       {info.special && (
@@ -257,7 +257,7 @@ export default function TripPlanner({ trips, generatedAt, today }: Props) {
   }, [generatedAt]);
 
   const sp         = SPECIAL[date];
-  const destLabel  = dir === "wb" ? "Philadelphia" : "New Jersey";
+  const destLabel  = dir === "wb" ? "Westbound → 15/16th & Locust" : "Eastbound → Lindenwold";
 
   // ── Shared style tokens ─────────────────────────────────────────────────────
   const card:       React.CSSProperties = { background:"#fff", border:"0.5px solid #e0e0e0", borderRadius:12, padding:16, marginBottom:12 };
@@ -335,15 +335,15 @@ export default function TripPlanner({ trips, generatedAt, today }: Props) {
             <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap", marginBottom:10 }}>
               <span style={pill}>→ {destLabel}</span>
               <select value={dir} onChange={e => onDir(e.target.value as Dir)} style={{ fontSize:12, padding:"4px 8px" }}>
-                <option value="wb">→ Philadelphia (westbound)</option>
-                <option value="eb">→ New Jersey (eastbound)</option>
+                <option value="wb">Westbound → 15/16th & Locust</option>
+                <option value="eb">Eastbound → Lindenwold</option>
               </select>
             </div>
 
             {warnPhilly && (
               <div style={{ background:"#FAEEDA", border:"0.5px solid #EF9F27", borderRadius:8, padding:"8px 12px", marginBottom:10, fontSize:12, color:"#633806", display:"flex", alignItems:"center", gap:7 }}>
                 ⚠ Starting from Philadelphia — defaulted to{" "}
-                <strong style={{ marginLeft:3 }}>eastbound toward New Jersey</strong>. Change above if needed.
+                <strong style={{ marginLeft:3 }}>Eastbound → Lindenwold</strong>. Change above if needed.
               </div>
             )}
 
