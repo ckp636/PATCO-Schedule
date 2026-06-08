@@ -1,46 +1,58 @@
-import TripPlanner from "@/components/TripPlanner";
+import TripPlanner, { ScheduleData } from "@/components/TripPlanner";
 
 export const revalidate = 3600;
 
 const SCHEDULE_URL =
   "https://raw.githubusercontent.com/ckp636/PATCO-Schedule/master/data/public/schedule.json";
 
-interface Stop {
-  station: string;
-  time: string;
-}
-
-interface Trip {
-  direction: "NJ_TO_PHILLY" | "PHILLY_TO_NJ";
+interface RawStop  { station: string; time: string }
+interface RawTrip  {
+  direction:    "NJ_TO_PHILLY" | "PHILLY_TO_NJ";
   service_type: "weekday" | "saturday" | "sunday";
-  stops: Stop[];
+  stops: RawStop[];
+}
+interface RawSchedule {
+  effective_date: string;
+  generated_at:   string;
+  trips: RawTrip[];
 }
 
-interface ScheduleData {
-  effective_date: string;
-  generated_at: string;
-  trips: Trip[];
+function adapt(raw: RawSchedule): ScheduleData {
+  const schedule: ScheduleData["schedule"] = {
+    weekday:  { westbound: [], eastbound: [] },
+    saturday: { westbound: [], eastbound: [] },
+    sunday:   { westbound: [], eastbound: [] },
+  };
+  for (const trip of raw.trips) {
+    const dir = trip.direction === "NJ_TO_PHILLY" ? "westbound" : "eastbound";
+    const train: Record<string, string | null> = {};
+    for (const stop of trip.stops) train[stop.station] = stop.time;
+    schedule[trip.service_type][dir].push(train);
+  }
+  return { effective_date: raw.effective_date, generated_at: raw.generated_at, schedule };
 }
 
 async function getSchedule(): Promise<ScheduleData | null> {
   try {
     const res = await fetch(SCHEDULE_URL, { next: { revalidate: 3600 } });
     if (!res.ok) return null;
-    return res.json() as Promise<ScheduleData>;
+    return adapt(await res.json() as RawSchedule);
   } catch {
     return null;
   }
 }
 
 export default async function HomePage() {
-  const schedule = await getSchedule();
-  const today = new Date().toISOString().slice(0, 10);
+  const data = await getSchedule();
 
-  return (
-    <TripPlanner
-      trips={schedule?.trips ?? []}
-      generatedAt={schedule?.generated_at ?? ""}
-      today={today}
-    />
-  );
+  if (!data) {
+    return (
+      <div className="max-w-xl mx-auto px-4 py-10 text-center text-sm text-gray-500">
+        Schedule data unavailable.{" "}
+        <code className="font-mono">python pipeline/main.py</code>
+      </div>
+    );
+  }
+
+  return <TripPlanner data={data} />;
 }

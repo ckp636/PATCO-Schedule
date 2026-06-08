@@ -1,330 +1,393 @@
-"use client";
+'use client'
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from 'react'
 
-// ── Constants ──────────────────────────────────────────────────────────────────
+// ── Types ─────────────────────────────────────────────────────────────────────
+type Train = Record<string, string | null>
+type DaySchedule = { eastbound: Train[]; westbound: Train[] }
 
-const STATIONS = [
-  "Lindenwold","Ashland","Woodcrest","Haddonfield","Westmont",
-  "Collingswood","Ferry Ave","Broadway","City Hall",
-  "Franklin Square","8th & Market","9/10th & Locust",
-  "12/13th & Locust","15/16th & Locust",
-];
-const PHILLY = new Set([
-  "Franklin Square","8th & Market","9/10th & Locust",
-  "12/13th & Locust","15/16th & Locust",
-]);
-
-// Update when PATCO announces special service days
-const SPECIAL: Record<string, { note: string; pdf: string }> = {};
-
-// ── Types ──────────────────────────────────────────────────────────────────────
-
-interface Stop  { station: string; time: string; }
-interface Trip  {
-  direction:    "NJ_TO_PHILLY" | "PHILLY_TO_NJ";
-  service_type: "weekday" | "saturday" | "sunday";
-  stops: Stop[];
-}
-interface RawRow { dep: number; arr: number | null; }
-type StoredResult =
-  | { type: "noservice" }
-  | { type: "lastrain"; lastDep: number }
-  | { type: "trains";   rawRows: RawRow[]; hasDest: boolean };
-
-interface TrainRow extends RawRow {
-  isPast: boolean; isNext: boolean; isSoon: boolean; diff: number;
-}
-interface CalInfo {
-  d: number; dt: string;
-  past?: boolean; today?: boolean; grey?: boolean; special?: boolean;
-}
-type Dir = "wb" | "eb";
-
-// ── Helpers ────────────────────────────────────────────────────────────────────
-
-const pad   = (n: number) => String(n).padStart(2, "0");
-const fmt12 = (m: number) => {
-  const h = Math.floor(m / 60) % 24, mn = m % 60, p = h >= 12 ? "PM" : "AM";
-  return `${h % 12 || 12}:${pad(mn)} ${p}`;
-};
-const toMins   = (t: string) => { const [h, m] = t.split(":").map(Number); return h*60+m; };
-const nowMins  = () => { const d = new Date(); return d.getHours()*60+d.getMinutes(); };
-const addDays  = (d: Date, n: number) => { const r = new Date(d); r.setDate(d.getDate()+n); return r; };
-const fmtDate  = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
-
-const getServiceType = (dt: string): Trip["service_type"] => {
-  const day = new Date(dt + "T12:00:00").getDay();
-  return day === 0 ? "sunday" : day === 6 ? "saturday" : "weekday";
-};
-
-const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-const DAYS   = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
-
-const dayLabel = (dt: string, today: string) => {
-  const d = new Date(dt + "T12:00:00");
-  const prefix = dt === today ? "Today · " : "";
-  return `${prefix}${DAYS[d.getDay()]}, ${MONTHS[d.getMonth()]} ${d.getDate()}`;
-};
-
-function buildCalendar(today: Date): CalInfo[] {
-  const todayStr = fmtDate(today);
-  const end       = addDays(today, 14);
-  const confirmed = addDays(today, 7);   // dates beyond this show as greyed
-  // start from Monday of current week
-  const dow = today.getDay();
-  const start = addDays(today, -(dow === 0 ? 6 : dow - 1));
-  const days: CalInfo[] = [];
-  for (let d = new Date(start); d <= end; d = addDays(d, 1)) {
-    const dt = fmtDate(d);
-    days.push({
-      d: d.getDate(), dt,
-      past:    dt < todayStr,
-      today:   dt === todayStr,
-      grey:    d > confirmed && dt !== todayStr,
-      special: !!SPECIAL[dt],
-    });
+export interface ScheduleData {
+  effective_date: string
+  generated_at: string
+  stations?: string[]
+  schedule: {
+    weekday: DaySchedule
+    saturday: DaySchedule
+    sunday: DaySchedule
   }
-  return days;
+  special_dates?: Record<string, { note: string; pdf_url: string }>
+  confirmed_dates?: string[]
 }
 
-function buildResults(
-  trips: Trip[], date: string, dir: Dir, from: string, to: string,
-): StoredResult {
-  const direction = dir === "wb" ? "NJ_TO_PHILLY" : "PHILLY_TO_NJ";
-  const svcType   = getServiceType(date);
+// ── Constants ─────────────────────────────────────────────────────────────────
+const STATIONS = [
+  'Lindenwold', 'Ashland', 'Woodcrest', 'Haddonfield', 'Westmont',
+  'Collingswood', 'Ferry Ave', 'Broadway', 'City Hall',
+  'Franklin Square', '8th & Market', '9/10th & Locust',
+  '12/13th & Locust', '15/16th & Locust',
+]
 
-  const rawRows: RawRow[] = trips
-    .filter(t => t.service_type === svcType && t.direction === direction)
-    .flatMap(t => {
-      const fs = t.stops.find(s => s.station === from);
-      if (!fs) return [];
-      const dep = toMins(fs.time);
-      if (to) {
-        const ts = t.stops.find(s => s.station === to);
-        if (!ts) return [];
-        const arr = toMins(ts.time);
-        if (arr <= dep) return [];
-        return [{ dep, arr }] as RawRow[];
-      }
-      return [{ dep, arr: null }] as RawRow[];
-    })
-    .sort((a, b) => a.dep - b.dep);
+const PHILLY_STATIONS = new Set([
+  'Franklin Square', '8th & Market', '9/10th & Locust',
+  '12/13th & Locust', '15/16th & Locust',
+])
 
-  return { type: "trains", rawRows, hasDest: !!to };
+// ── Utilities ─────────────────────────────────────────────────────────────────
+const pad = (n: number) => String(n).padStart(2, '0')
+
+const toMins = (t: string | null | undefined): number => {
+  if (!t) return -1
+  const [h, m] = t.split(':').map(Number)
+  return h * 60 + m
 }
 
-// ── CalDay ─────────────────────────────────────────────────────────────────────
+const nowMins = () => {
+  const d = new Date()
+  return d.getHours() * 60 + d.getMinutes()
+}
 
-function CalDay({ info, selected, onClick }: { info: CalInfo; selected: string; onClick: () => void }) {
-  const base: React.CSSProperties = {
-    textAlign:"center", padding:"8px 4px", borderRadius:6,
-    fontSize:13, position:"relative", userSelect:"none",
-  };
-  if (info.past)
-    return <div style={{ ...base, opacity:.25, color:"#888" }}>{info.d}</div>;
-  if (info.grey)
-    return <div style={{ ...base, opacity:.3, color:"#888", cursor:"default" }} title="Not yet confirmed by PATCO">{info.d}</div>;
+const fmt12 = (t: string | null | undefined): string => {
+  if (!t) return '—'
+  const [h, m] = t.split(':').map(Number)
+  return `${h % 12 || 12}:${pad(m)} ${h >= 12 ? 'PM' : 'AM'}`
+}
 
-  const sel = selected === info.dt;
+const isSameDay = (a: Date, b: Date) =>
+  a.getFullYear() === b.getFullYear() &&
+  a.getMonth() === b.getMonth() &&
+  a.getDate() === b.getDate()
+
+const toKey = (d: Date) =>
+  `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+
+const getDayType = (d: Date): 'weekday' | 'saturday' | 'sunday' => {
+  const day = d.getDay()
+  if (day === 0) return 'sunday'
+  if (day === 6) return 'saturday'
+  return 'weekday'
+}
+
+// ── CalendarGrid ──────────────────────────────────────────────────────────────
+function CalendarGrid({
+  selected,
+  onSelect,
+  specialDates,
+  confirmedCount,
+}: {
+  selected: Date
+  onSelect: (d: Date) => void
+  specialDates: Set<string>
+  confirmedCount: number
+}) {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  const days = Array.from({ length: 14 }, (_, i) => {
+    const d = new Date(today)
+    d.setDate(today.getDate() + i)
+    return d
+  })
+
+  const startPad = (days[0].getDay() + 6) % 7
+
   return (
-    <div onClick={onClick} style={{
-      ...base, cursor:"pointer",
-      background:   sel ? "#E6F1FB" : "transparent",
-      color:        sel ? "#0C447C" : info.today ? "#000" : "#333",
-      fontWeight:   info.today ? 600 : 400,
-      border:       sel ? "1.5px solid #378ADD" : info.today ? "2px solid #333" : "1px solid transparent",
-    }}>
-      {info.d}
-      {info.special && (
-        <span style={{
-          position:"absolute", bottom:2, left:"50%", transform:"translateX(-50%)",
-          width:5, height:5, borderRadius:"50%",
-          background: sel ? "#fff" : "#BA7517", display:"block",
-        }} />
-      )}
+    <div>
+      <div className="grid grid-cols-7 gap-1 mb-1">
+        {['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].map(d => (
+          <div key={d} className="text-center text-xs text-gray-400 py-1">{d}</div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-7 gap-1">
+        {Array(startPad).fill(null).map((_, i) => <div key={`pad-${i}`} />)}
+
+        {days.map((day, idx) => {
+          const isToday     = isSameDay(day, today)
+          const isSelected  = isSameDay(day, selected)
+          const isConfirmed = idx < confirmedCount
+          const isSpecial   = specialDates.has(toKey(day))
+
+          if (!isConfirmed) {
+            return (
+              <div
+                key={toKey(day)}
+                title="Not yet confirmed by PATCO — check back closer to the date"
+                className="relative text-center py-2 text-sm text-gray-300 rounded-lg cursor-not-allowed select-none"
+              >
+                {day.getDate()}
+              </div>
+            )
+          }
+
+          return (
+            <button
+              key={toKey(day)}
+              onClick={() => onSelect(day)}
+              className={[
+                'relative text-center py-2 rounded-lg text-sm font-medium transition-colors',
+                isSelected
+                  ? 'bg-blue-600 text-white'
+                  : isToday
+                  ? 'border-2 border-gray-800 text-gray-900 hover:bg-gray-100'
+                  : 'text-gray-700 hover:bg-gray-100',
+              ].join(' ')}
+            >
+              {day.getDate()}
+              {isSpecial && (
+                <span
+                  className={[
+                    'absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full',
+                    isSelected ? 'bg-white' : 'bg-amber-500',
+                  ].join(' ')}
+                />
+              )}
+            </button>
+          )
+        })}
+      </div>
+
+      <div className="flex items-center gap-4 mt-2 text-xs text-gray-400">
+        <span className="flex items-center gap-1">
+          <span className="inline-block w-2 h-2 rounded-full bg-amber-500" />
+          Special schedule
+        </span>
+        <span>Greyed = not yet confirmed</span>
+      </div>
     </div>
-  );
+  )
 }
 
-// ── TripPlanner ────────────────────────────────────────────────────────────────
-
-interface Props {
-  trips:         Trip[];
-  generatedAt:   string;
-  today:         string;  // YYYY-MM-DD from server
-}
-
-export default function TripPlanner({ trips, generatedAt, today }: Props) {
-  const [date,       setDate]       = useState(today);
-  const [from,       setFrom]       = useState("");
-  const [to,         setTo]         = useState("");
-  const [dir,        setDir]        = useState<Dir>("wb");
-  const [showTo,     setShowTo]     = useState(false);
-  const [results,    setResults]    = useState<StoredResult | null>(null);
-  const [tick,       setTick]       = useState(0);
-  const [warnPhilly, setWarnPhilly] = useState(false);
-
+// ── TrainList ─────────────────────────────────────────────────────────────────
+function TrainList({
+  trains,
+  from,
+  to,
+  isToday,
+}: {
+  trains: Train[]
+  from: string
+  to: string
+  isToday: boolean
+}) {
+  const [, setTick] = useState(0)
   useEffect(() => {
-    const id = setInterval(() => setTick(n => n + 1), 30000);
-    return () => clearInterval(id);
-  }, []);
+    const t = setInterval(() => setTick(n => n + 1), 30_000)
+    return () => clearInterval(t)
+  }, [])
 
-  // ── Derived state (re-evaluated on every tick for live countdowns) ──────────
-  const isToday = date === today;
-  const cur     = isToday ? nowMins() + tick * 0 : 0;
+  const cur     = isToday ? nowMins() : 0
+  const hasDest = !!to
 
-  const displayRows = useMemo((): TrainRow[] => {
-    if (results?.type !== "trains") return [];
-    let foundNext = false;
-    return results.rawRows.map(r => {
-      const isPast = isToday && r.dep < cur - 1;
-      const isNext = isToday && !foundNext && r.dep >= cur;
-      const isSoon = isToday && !isNext && r.dep >= cur && r.dep < cur + 20;
-      if (isNext) foundNext = true;
-      return { ...r, isPast, isNext, isSoon, diff: isToday && !isPast ? r.dep - cur : -1 };
-    });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [results, cur, isToday]);
+  const rows = trains
+    .map(tr => ({ dep: tr[from] ?? null, arr: hasDest ? (tr[to] ?? null) : null }))
+    .filter(r => r.dep !== null)
+    .filter(r => !hasDest || (r.arr !== null && toMins(r.arr) > toMins(r.dep)))
+    .sort((a, b) => toMins(a.dep) - toMins(b.dep))
 
-  // Detect "last train passed" dynamically on each tick
-  const effectiveType = useMemo((): StoredResult["type"] | null => {
-    if (!results) return null;
-    if (results.type !== "trains") return results.type;
-    if (!isToday) return "trains";
-    if (results.rawRows.length === 0) return "trains";
-    const allPast = results.rawRows.every(r => r.dep < cur - 1);
-    return allPast ? "lastrain" : "trains";
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [results, cur, isToday]);
+  if (rows.length === 0) {
+    return (
+      <div className="text-center py-8 text-sm text-gray-400">
+        No trains found for this route
+      </div>
+    )
+  }
 
-  const lastDep = results?.type === "trains" && results.rawRows.length
-    ? results.rawRows[results.rawRows.length - 1].dep : 0;
+  const lastRow = rows[rows.length - 1]
+  if (isToday && toMins(lastRow.dep) < cur) {
+    return (
+      <div className="text-center py-6 bg-gray-50 rounded-xl border border-gray-200">
+        <p className="font-medium text-gray-900 mb-1">🌙 Last train has departed</p>
+        <p className="text-sm text-gray-500">
+          Last departure:{' '}
+          <span className="font-mono">{fmt12(lastRow.dep)}</span>
+          {' '}· Service resumes at{' '}
+          <strong>4:30 AM tomorrow</strong>
+        </p>
+      </div>
+    )
+  }
 
-  // ── Calendar ────────────────────────────────────────────────────────────────
-  const cal = useMemo(() => buildCalendar(new Date(today + "T12:00:00")), [today]);
-  const calMonth = useMemo(() => {
-    const d = new Date(today + "T12:00:00");
-    return `${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
-  }, [today]);
+  let foundNext = false
 
-  // ── Destination stations (downstream of From in chosen direction) ───────────
-  const toStations = useMemo(() => {
-    const sts = dir === "wb" ? STATIONS : [...STATIONS].reverse();
-    const fi  = sts.indexOf(from);
-    return sts.filter((_, i) => i > fi);
-  }, [from, dir]);
+  return (
+    <div>
+      <div className="flex justify-between text-xs uppercase tracking-wider text-gray-400 mb-2">
+        <span>Departures</span>
+        <span>{rows.length} trains</span>
+      </div>
 
-  // ── Handlers ────────────────────────────────────────────────────────────────
-  const onFrom = (val: string) => {
-    const isPhilly = PHILLY.has(val);
-    const newDir: Dir = isPhilly ? "eb" : "wb";
-    setFrom(val); setTo(""); setShowTo(false); setResults(null);
-    setDir(newDir); setWarnPhilly(isPhilly);
-  };
+      <div className="border border-gray-200 rounded-xl overflow-hidden">
+        {rows.map((r, i) => {
+          const depM   = toMins(r.dep)
+          const isPast = isToday && depM < cur - 1
+          const isNext = isToday && !foundNext && depM >= cur
+          const isSoon = isToday && !isNext && depM >= cur && depM < cur + 20
+          if (isNext) foundNext = true
+          const diff = isToday && !isPast ? depM - cur : -1
 
-  const onDir = (val: Dir) => {
-    setDir(val); setTo(""); setWarnPhilly(false); setResults(null);
-  };
+          return (
+            <div
+              key={i}
+              style={{ gridTemplateColumns: hasDest ? '1fr auto 1fr 56px' : '1fr 56px' }}
+              className={[
+                'grid items-center gap-3 px-4 py-3 text-sm border-b border-gray-100 last:border-0',
+                isNext ? 'bg-green-50 border-l-4 border-l-green-500'
+                  : isSoon ? 'border-l-4 border-l-amber-400'
+                  : isPast ? 'opacity-25 border-l-4 border-l-transparent'
+                  : 'border-l-4 border-l-transparent',
+              ].join(' ')}
+            >
+              <span className={[
+                'font-mono font-medium',
+                isNext ? 'text-green-700' : isSoon ? 'text-amber-700' : 'text-gray-900',
+              ].join(' ')}>
+                {fmt12(r.dep)}
+              </span>
 
-  const doSearch = () => {
-    if (!from) return;
-    if (isToday && cur < 270) { setResults({ type: "noservice" }); return; }
-    setResults(buildResults(trips, date, dir, from, to));
-  };
+              {hasDest && (
+                <>
+                  <span className="text-gray-300 text-xs">→</span>
+                  <span className="font-mono text-gray-500">{fmt12(r.arr)}</span>
+                </>
+              )}
 
-  const rideNow = () => {
-    const f = from || STATIONS[0];
-    const newDir: Dir = PHILLY.has(f) ? "eb" : "wb";
-    setDate(today); setFrom(f); setDir(newDir);
-    setTo(""); setShowTo(false); setWarnPhilly(PHILLY.has(f));
-    const nowCur = nowMins();
-    if (nowCur < 270) { setResults({ type: "noservice" }); return; }
-    setResults(buildResults(trips, today, newDir, f, ""));
-  };
+              <span className={[
+                'font-mono text-xs text-right',
+                isNext ? 'text-green-600' : isSoon ? 'text-amber-600' : 'text-gray-400',
+              ].join(' ')}>
+                {isPast ? 'passed' : diff === 0 ? 'now' : diff > 0 ? `${diff}m` : ''}
+              </span>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// ── Main TripPlanner ──────────────────────────────────────────────────────────
+export default function TripPlanner({ data }: { data: ScheduleData }) {
+  const todayDate = new Date()
+  todayDate.setHours(0, 0, 0, 0)
+
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date(todayDate))
+  const [from,         setFrom]         = useState('')
+  const [to,           setTo]           = useState('')
+  const [dir,          setDir]          = useState<'eastbound' | 'westbound'>('westbound')
+  const [showTo,       setShowTo]       = useState(false)
+  const [warnPhilly,   setWarnPhilly]   = useState(false)
+  const [searched,     setSearched]     = useState(false)
+
+  const confirmedCount = data.confirmed_dates?.length ?? 7
+  const specialDates   = new Set(Object.keys(data.special_dates ?? {}))
+  const specialForDate = data.special_dates?.[toKey(selectedDate)]
+
+  const orderedStations = dir === 'westbound' ? STATIONS : [...STATIONS].reverse()
+  const fromIdx         = orderedStations.indexOf(from)
+  const toStations      = fromIdx >= 0 ? orderedStations.slice(fromIdx + 1) : []
+
+  const isToday = isSameDay(selectedDate, todayDate)
+  const dayType = getDayType(selectedDate)
+  const trains  = data.schedule[dayType][dir] ?? []
+  const isNoSvc = isToday && nowMins() < 270
+
+  const dirLabel = dir === 'westbound'
+    ? 'Westbound → 15/16th & Locust'
+    : 'Eastbound → Lindenwold'
+
+  const onFromChange = (val: string) => {
+    setFrom(val); setTo(''); setShowTo(false); setSearched(false)
+    if (!val) { setWarnPhilly(false); return }
+    const isPhilly = PHILLY_STATIONS.has(val)
+    setDir(isPhilly ? 'eastbound' : 'westbound')
+    setWarnPhilly(isPhilly)
+  }
+
+  const onDirChange = (val: 'eastbound' | 'westbound') => {
+    setDir(val); setTo(''); setWarnPhilly(false); setSearched(false)
+  }
+
+  const selectDate = (d: Date) => { setSelectedDate(d); setSearched(false) }
+
+  const doSearch = () => { if (from) setSearched(true) }
 
   const clearAll = () => {
-    setDate(today); setFrom(""); setTo(""); setDir("wb");
-    setShowTo(false); setResults(null); setWarnPhilly(false);
-  };
+    setFrom(''); setTo(''); setDir('westbound')
+    setShowTo(false); setWarnPhilly(false); setSearched(false)
+    setSelectedDate(new Date(todayDate))
+  }
 
-  // ── Last-updated label ──────────────────────────────────────────────────────
-  const lastUpdated = useMemo(() => {
-    if (!generatedAt) return "";
-    const d  = new Date(generatedAt);
-    const h  = d.getHours(), mn = pad(d.getMinutes()), p = h >= 12 ? "PM" : "AM";
-    return `${h % 12 || 12}:${mn} ${p}`;
-  }, [generatedAt]);
+  const rideNow = () => {
+    setSelectedDate(new Date(todayDate))
+    if (!from) { setFrom(STATIONS[0]); setDir('westbound') }
+    setSearched(true)
+  }
 
-  const sp         = SPECIAL[date];
-  const destLabel  = dir === "wb" ? "Westbound → 15/16th & Locust" : "Eastbound → Lindenwold";
-
-  // ── Shared style tokens ─────────────────────────────────────────────────────
-  const card:       React.CSSProperties = { background:"#fff", border:"0.5px solid #e0e0e0", borderRadius:12, padding:16, marginBottom:12 };
-  const btnPrimary: React.CSSProperties = { flex:1, padding:"11px", fontSize:14, fontWeight:500, cursor:"pointer", borderRadius:8, background:"#E6F1FB", border:"1px solid #378ADD", color:"#0C447C", display:"flex", alignItems:"center", justifyContent:"center", gap:7 };
-  const btnClear:   React.CSSProperties = { padding:"11px 18px", fontSize:14, cursor:"pointer", borderRadius:8, color:"#888", background:"transparent", border:"0.5px solid #ddd" };
-  const pill:       React.CSSProperties = { display:"inline-flex", alignItems:"center", gap:5, padding:"4px 12px", borderRadius:8, fontSize:13, fontWeight:500, background:"#E6F1FB", color:"#0C447C", border:"0.5px solid #378ADD" };
-  const linkBtn:    React.CSSProperties = { background:"none", border:"none", cursor:"pointer", fontSize:12, color:"#888", padding:0, display:"inline-flex", alignItems:"center", gap:4, textDecoration:"underline", textDecorationStyle:"dotted" };
-
-  // ── Render ──────────────────────────────────────────────────────────────────
   return (
-    <div style={{ fontFamily:"system-ui,sans-serif", maxWidth:640, margin:"0 auto", padding:"0 0 40px" }}>
+    <div className="max-w-xl mx-auto px-4 py-6">
 
       {/* Header */}
-      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", paddingBottom:14, marginBottom:16, borderBottom:"0.5px solid #e8e8e8" }}>
-        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-          <span style={{ fontSize:20 }}>🚇</span>
+      <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-200">
+        <div className="flex items-center gap-3">
+          <span className="text-2xl" aria-hidden>🚇</span>
           <div>
-            <div style={{ fontSize:15, fontWeight:500 }}>PATCO Speedline</div>
-            <div style={{ fontSize:11, color:"#888" }}>
-              Unofficial viewer · <a href="https://ridepatco.org" style={{ color:"#378ADD" }}>ridepatco.org</a>
-            </div>
+            <h1 className="text-base font-semibold text-gray-900">PATCO Speedline</h1>
+            <p className="text-xs text-gray-400">
+              Unofficial viewer ·{' '}
+              <a href="https://ridepatco.org" className="text-blue-500 hover:underline" target="_blank" rel="noopener noreferrer">
+                ridepatco.org
+              </a>
+            </p>
           </div>
         </div>
-        {lastUpdated && (
-          <div style={{ fontSize:11, color:"#888" }}>🕐 Last updated {lastUpdated}</div>
-        )}
+        <p className="text-xs text-gray-400">
+          Updated{' '}
+          {new Date(data.generated_at).toLocaleTimeString('en-US', {
+            hour: 'numeric', minute: '2-digit',
+          })}
+        </p>
       </div>
 
       {/* Ride Now */}
-      <button onClick={rideNow} style={{ width:"100%", padding:13, fontSize:15, fontWeight:500, marginBottom:20, background:"#EAF3DE", border:"1px solid #3B6D11", color:"#27500A", borderRadius:12, cursor:"pointer" }}>
+      <button
+        onClick={rideNow}
+        className="w-full py-3 mb-6 bg-green-50 border border-green-300 text-green-800 font-semibold rounded-xl hover:bg-green-100 transition-colors"
+      >
         ▶ Ride now
       </button>
 
       {/* Calendar */}
-      <div style={{ marginBottom:20 }}>
-        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:8 }}>
-          <div style={{ fontSize:13, fontWeight:500, color:"#666" }}>📅 {calMonth}</div>
-          <div style={{ display:"flex", gap:12, fontSize:11, color:"#888" }}>
-            <span>
-              <span style={{ display:"inline-block", width:6, height:6, borderRadius:"50%", background:"#BA7517", verticalAlign:"middle", marginRight:3 }} />
-              Special
-            </span>
-            <span style={{ opacity:.5 }}>Greyed = not yet confirmed</span>
-          </div>
-        </div>
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:3, marginBottom:3 }}>
-          {["Mo","Tu","We","Th","Fr","Sa","Su"].map(d => (
-            <div key={d} style={{ textAlign:"center", fontSize:11, color:"#999", padding:3 }}>{d}</div>
-          ))}
-        </div>
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:3 }}>
-          {cal.map(info => (
-            <CalDay key={info.dt} info={info} selected={date}
-              onClick={() => { if (!info.past && !info.grey) { setDate(info.dt); setResults(null); }}} />
-          ))}
-        </div>
-      </div>
+      <section className="mb-5">
+        <h2 className="text-sm font-semibold text-gray-600 mb-3">
+          📅{' '}
+          {selectedDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+        </h2>
+        <CalendarGrid
+          selected={selectedDate}
+          onSelect={selectDate}
+          specialDates={specialDates}
+          confirmedCount={confirmedCount}
+        />
+      </section>
 
-      <div style={{ fontSize:12, color:"#888", marginBottom:14, minHeight:16 }}>
-        {dayLabel(date, today)}
-      </div>
+      <p className="text-xs text-gray-500 mb-5">
+        {isToday && 'Today · '}
+        {selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+      </p>
 
       {/* Search card */}
-      <div style={card}>
-        <div style={{ marginBottom:14 }}>
-          <div style={{ fontSize:10, color:"#999", letterSpacing:1, textTransform:"uppercase", marginBottom:5 }}>From</div>
-          <select value={from} onChange={e => onFrom(e.target.value)} style={{ width:"100%" }}>
+      <div className="bg-white border border-gray-200 rounded-xl p-4 mb-4 shadow-sm space-y-4">
+
+        {/* From */}
+        <div>
+          <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1.5">
+            From <span className="text-red-500">*</span>
+          </label>
+          <select
+            value={from}
+            onChange={e => onFromChange(e.target.value)}
+            className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
             <option value="">Select departure station</option>
             {STATIONS.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
@@ -332,34 +395,60 @@ export default function TripPlanner({ trips, generatedAt, today }: Props) {
 
         {from && (
           <>
-            <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap", marginBottom:10 }}>
-              <span style={pill}>→ {destLabel}</span>
-              <select value={dir} onChange={e => onDir(e.target.value as Dir)} style={{ fontSize:12, padding:"4px 8px" }}>
-                <option value="wb">Westbound → 15/16th & Locust</option>
-                <option value="eb">Eastbound → Lindenwold</option>
+            {/* Direction pill + override */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg text-sm font-medium">
+                {dirLabel}
+              </span>
+              <select
+                value={dir}
+                onChange={e => onDirChange(e.target.value as 'eastbound' | 'westbound')}
+                className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 text-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-400"
+              >
+                <option value="westbound">Westbound → 15/16th & Locust</option>
+                <option value="eastbound">Eastbound → Lindenwold</option>
               </select>
             </div>
 
+            {/* Philly warning */}
             {warnPhilly && (
-              <div style={{ background:"#FAEEDA", border:"0.5px solid #EF9F27", borderRadius:8, padding:"8px 12px", marginBottom:10, fontSize:12, color:"#633806", display:"flex", alignItems:"center", gap:7 }}>
-                ⚠ Starting from Philadelphia — defaulted to{" "}
-                <strong style={{ marginLeft:3 }}>Eastbound → Lindenwold</strong>. Change above if needed.
+              <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800">
+                <span className="shrink-0 mt-0.5">⚠️</span>
+                <span>
+                  Starting from Philadelphia — defaulted to{' '}
+                  <strong>Eastbound → Lindenwold</strong>.
+                  Change direction above if needed.
+                </span>
               </div>
             )}
 
+            {/* To — collapsed by default */}
             {!showTo ? (
-              <button onClick={() => setShowTo(true)} style={linkBtn}>
+              <button
+                onClick={() => setShowTo(true)}
+                className="text-xs text-gray-500 underline decoration-dotted underline-offset-2 hover:text-gray-700 flex items-center gap-1"
+              >
                 + Add specific destination
               </button>
             ) : (
-              <div style={{ marginTop:12 }}>
-                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:5 }}>
-                  <div style={{ fontSize:10, color:"#999", letterSpacing:1, textTransform:"uppercase" }}>
-                    To <span style={{ opacity:.6, fontWeight:400 }}>(optional)</span>
-                  </div>
-                  <button onClick={() => { setShowTo(false); setTo(""); }} style={linkBtn}>✕ Remove</button>
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+                    To{' '}
+                    <span className="font-normal normal-case text-gray-400">(optional)</span>
+                  </label>
+                  <button
+                    onClick={() => { setShowTo(false); setTo('') }}
+                    className="text-xs text-gray-400 hover:text-gray-600"
+                  >
+                    ✕ Remove
+                  </button>
                 </div>
-                <select value={to} onChange={e => setTo(e.target.value)} style={{ width:"100%" }}>
+                <select
+                  value={to}
+                  onChange={e => setTo(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
                   <option value="">Any destination</option>
                   {toStations.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
@@ -370,110 +459,75 @@ export default function TripPlanner({ trips, generatedAt, today }: Props) {
       </div>
 
       {/* Action buttons */}
-      <div style={{ display:"flex", gap:8, marginBottom:18 }}>
-        <button onClick={doSearch} style={btnPrimary}>🔍 Find trains</button>
-        <button onClick={clearAll} style={btnClear}>✕ Clear</button>
+      <div className="flex gap-3 mb-6">
+        <button
+          onClick={doSearch}
+          disabled={!from}
+          className="flex-1 py-2.5 bg-blue-50 border border-blue-300 text-blue-700 font-semibold rounded-xl hover:bg-blue-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          🔍 Find trains
+        </button>
+        <button
+          onClick={clearAll}
+          className="px-5 py-2.5 border border-gray-200 text-gray-500 rounded-xl hover:bg-gray-50 transition-colors text-sm"
+        >
+          ✕ Clear
+        </button>
       </div>
 
-      {/* Special schedule banner */}
-      {results && sp && (
-        <div style={{ background:"#FAEEDA", border:"0.5px solid #EF9F27", borderRadius:8, padding:"10px 14px", marginBottom:12, fontSize:13, display:"flex", alignItems:"flex-start", gap:8 }}>
-          <span style={{ flexShrink:0, marginTop:1 }}>ℹ️</span>
-          <div>
-            <span style={{ fontWeight:500, color:"#633806" }}>Special schedule in effect</span>
-            <span style={{ color:"#854F0B" }}> · {sp.note}</span>
-            <a href={sp.pdf} style={{ color:"#378ADD", marginLeft:8, fontSize:12 }}>View PDF ↗</a>
-          </div>
-        </div>
-      )}
+      {/* Results */}
+      {searched && (
+        <div className="space-y-4">
+          {specialForDate && (
+            <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-300 rounded-xl text-sm">
+              <span className="shrink-0">ℹ️</span>
+              <div>
+                <span className="font-semibold text-amber-800">Special schedule in effect</span>
+                <span className="text-amber-700"> · {specialForDate.note}</span>
+                <a
+                  href={specialForDate.pdf_url}
+                  className="ml-2 text-xs text-blue-600 hover:underline"
+                  target="_blank" rel="noopener noreferrer"
+                >
+                  View PDF ↗
+                </a>
+              </div>
+            </div>
+          )}
 
-      {/* No overnight service */}
-      {effectiveType === "noservice" && (
-        <div style={{ background:"#f5f5f5", border:"0.5px solid #ddd", borderRadius:8, padding:16, textAlign:"center" }}>
-          <div style={{ fontWeight:500, marginBottom:4 }}>No service · Overnight maintenance</div>
-          <div style={{ fontSize:13, color:"#888" }}>12:00 AM – 4:30 AM · Next train at <strong>4:30 AM</strong></div>
-        </div>
-      )}
-
-      {/* Last train */}
-      {effectiveType === "lastrain" && (
-        <div style={{ background:"#f5f5f5", border:"0.5px solid #ddd", borderRadius:8, padding:16, textAlign:"center" }}>
-          <div style={{ fontWeight:500, marginBottom:4 }}>🌙 Last train today has departed</div>
-          <div style={{ fontSize:13, color:"#888" }}>
-            Last at <span style={{ fontFamily:"monospace", color:"#333" }}>{fmt12(lastDep)}</span> · Service resumes <strong>4:30 AM tomorrow</strong>
-          </div>
-        </div>
-      )}
-
-      {/* Train list */}
-      {effectiveType === "trains" && results?.type === "trains" && (
-        <div>
-          <div style={{ fontSize:10, color:"#999", letterSpacing:1, textTransform:"uppercase", marginBottom:8, display:"flex", justifyContent:"space-between" }}>
-            <span>Departures</span>
-            <span style={{ fontSize:11, letterSpacing:0, fontWeight:400 }}>{displayRows.length} trains</span>
-          </div>
-
-          {displayRows.length === 0 ? (
-            <div style={{ padding:16, textAlign:"center", color:"#aaa", fontSize:13 }}>
-              No trains found for this selection.
+          {isNoSvc ? (
+            <div className="text-center py-6 bg-gray-50 rounded-xl border border-gray-200">
+              <p className="font-medium text-gray-900 mb-1">No service · Overnight maintenance</p>
+              <p className="text-sm text-gray-500">
+                12:00 AM – 4:30 AM · Next train at <strong>4:30 AM</strong>
+              </p>
             </div>
           ) : (
-            <div style={{ border:"0.5px solid #e8e8e8", borderRadius:12, overflow:"hidden" }}>
-              {displayRows.map((r, i) => {
-                const bg  = r.isNext ? "#EAF3DE" : i % 2 === 0 ? "#fafafa" : "#fff";
-                const lc  = r.isNext ? "#3B6D11" : r.isSoon ? "#BA7517" : "transparent";
-                const tc  = r.isNext ? "#27500A" : r.isSoon ? "#633806" : r.isPast ? "#bbb" : "#222";
-                const cnt = r.isPast ? "passed" : r.diff === 0 ? "now" : r.diff > 0 ? `${r.diff}m` : "";
-                const hasDest = results.hasDest && r.arr !== null;
-                return (
-                  <div key={i} style={{
-                    display:"grid",
-                    gridTemplateColumns: hasDest ? "1fr auto 1fr 56px" : "1fr 56px",
-                    alignItems:"center", gap:8,
-                    padding:"10px 16px",
-                    borderBottom: i < displayRows.length - 1 ? "0.5px solid #eee" : "none",
-                    borderLeft:`3px solid ${lc}`,
-                    background:bg,
-                    opacity: r.isPast ? .3 : 1,
-                  }}>
-                    <div style={{ fontFamily:"monospace", fontSize:14, fontWeight: r.isNext||r.isSoon ? 500 : 400, color:tc }}>
-                      {fmt12(r.dep)}
-                    </div>
-                    {hasDest && (
-                      <>
-                        <span style={{ color:"#bbb", fontSize:12 }}>→</span>
-                        <div style={{ fontFamily:"monospace", fontSize:14, color:"#888" }}>{fmt12(r.arr!)}</div>
-                      </>
-                    )}
-                    <div style={{ fontSize:11, textAlign:"right", fontFamily:"monospace", color: r.isNext ? "#27500A" : r.isSoon ? "#633806" : "#aaa" }}>
-                      {cnt}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+            <TrainList trains={trains} from={from} to={to} isToday={isToday} />
           )}
         </div>
       )}
 
-      {/* Empty state */}
-      {!results && (
-        <div style={{ textAlign:"center", padding:"32px 20px", color:"#aaa" }}>
-          <div style={{ fontSize:28, marginBottom:8, opacity:.4 }}>📍</div>
-          <div style={{ fontSize:14 }}>Select a date and departure station, then tap Find trains</div>
+      {!searched && (
+        <div className="text-center py-10 text-gray-400">
+          <div className="text-3xl mb-2 opacity-30">📍</div>
+          <p className="text-sm">Select a date and departure station, then tap Find trains</p>
         </div>
       )}
 
       {/* Footer */}
-      <div style={{ marginTop:24, paddingTop:14, borderTop:"0.5px solid #eee", display:"flex", justifyContent:"space-between", alignItems:"center", flexWrap:"wrap", gap:8 }}>
-        <div style={{ fontSize:11, color:"#aaa" }}>
-          Unofficial · Not affiliated with PATCO · <a href="https://ridepatco.org" style={{ color:"#378ADD" }}>ridepatco.org</a>
-        </div>
-        <a href="mailto:ckp636@gmail.com?subject=PATCO Schedule Issue" style={{ fontSize:11, color:"#aaa", textDecoration:"none", display:"flex", alignItems:"center", gap:4 }}>
+      <div className="mt-10 pt-4 border-t border-gray-100 flex justify-between items-center flex-wrap gap-3 text-xs text-gray-400">
+        <span>
+          Unofficial · Not affiliated with PATCO ·{' '}
+          <a href="https://ridepatco.org" className="text-blue-400 hover:underline">ridepatco.org</a>
+        </span>
+        <a
+          href="mailto:ckp636@gmail.com?subject=PATCO Schedule Issue"
+          className="hover:text-gray-600 flex items-center gap-1"
+        >
           ✉ Report an issue
         </a>
       </div>
-
     </div>
-  );
+  )
 }
