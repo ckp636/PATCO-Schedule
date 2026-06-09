@@ -219,8 +219,20 @@ function TrainList({
 
   return (
     <div>
-      <div className="flex justify-between text-xs uppercase tracking-wider text-gray-400 mb-2">
-        <span>Departures</span>
+      {/* Column headers */}
+      <div
+        style={{ gridTemplateColumns: hasDest ? '1fr auto 1fr' : '1fr' }}
+        className="grid text-xs uppercase tracking-wider text-gray-400 px-4 mb-1"
+      >
+        <span>{from}</span>
+        {hasDest && (
+          <>
+            <span />
+            <span>{to}</span>
+          </>
+        )}
+      </div>
+      <div className="flex justify-end text-xs text-gray-400 mb-2">
         <span>{rows.length} trains</span>
       </div>
 
@@ -231,11 +243,12 @@ function TrainList({
           if (!isPast) upcomingCount++
           const isYellow = isToday && !isPast && upcomingCount <= 2
           const diff     = isToday && !isPast ? depM - cur : -1
+          const badge    = isPast ? 'passed' : diff === 0 ? 'now' : diff > 0 ? `${diff}m` : ''
 
           return (
             <div
               key={i}
-              style={{ gridTemplateColumns: hasDest ? '1fr auto 1fr 56px' : '1fr 56px' }}
+              style={{ gridTemplateColumns: hasDest ? '1fr auto 1fr' : '1fr' }}
               className={[
                 'grid items-center gap-3 px-4 py-3 text-sm border-b border-gray-100 last:border-0',
                 isYellow ? 'bg-yellow-50 border-l-4 border-l-yellow-400'
@@ -248,6 +261,14 @@ function TrainList({
                 isYellow ? 'text-yellow-700' : 'text-gray-900',
               ].join(' ')}>
                 {fmt12(r.dep)}
+                {badge && (
+                  <span className={[
+                    'ml-1.5 text-xs font-normal',
+                    isYellow ? 'text-yellow-500' : 'text-gray-400',
+                  ].join(' ')}>
+                    ({badge})
+                  </span>
+                )}
               </span>
 
               {hasDest && (
@@ -256,13 +277,6 @@ function TrainList({
                   <span className="font-mono text-gray-500">{fmt12(r.arr)}</span>
                 </>
               )}
-
-              <span className={[
-                'font-mono text-xs text-right',
-                isYellow ? 'text-yellow-600' : 'text-gray-400',
-              ].join(' ')}>
-                {isPast ? 'passed' : diff === 0 ? 'now' : diff > 0 ? `${diff}m` : ''}
-              </span>
             </div>
           )
         })}
