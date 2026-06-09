@@ -219,21 +219,12 @@ function TrainList({
 
   return (
     <div>
-      {/* Column headers */}
-      <div
-        style={{ gridTemplateColumns: hasDest ? '1fr auto 1fr' : '1fr' }}
-        className="grid text-xs uppercase tracking-wider text-gray-400 px-4 mb-1"
-      >
-        <span>{from}</span>
-        {hasDest && (
-          <>
-            <span />
-            <span>{to}</span>
-          </>
-        )}
-      </div>
-      <div className="flex justify-end text-xs text-gray-400 mb-2">
-        <span>{rows.length} trains</span>
+      {/* Single-line header: station name(s) + train count */}
+      <div className="flex items-center justify-between mb-2 px-1">
+        <span className="text-sm font-bold text-gray-900 uppercase tracking-wide">
+          {from}{hasDest && ` → ${to}`}
+        </span>
+        <span className="text-sm font-bold text-gray-900">{rows.length} trains</span>
       </div>
 
       <div className="border border-gray-200 rounded-xl overflow-hidden">
@@ -243,7 +234,11 @@ function TrainList({
           if (!isPast) upcomingCount++
           const isYellow = isToday && !isPast && upcomingCount <= 2
           const diff     = isToday && !isPast ? depM - cur : -1
-          const badge    = isPast ? 'passed' : diff === 0 ? 'now' : diff > 0 ? `${diff}m` : ''
+          const badge    = isPast ? 'passed'
+            : diff === 0 ? 'now'
+            : diff > 0
+              ? diff < 60 ? `${diff}m` : `${Math.floor(diff / 60)}h${diff % 60 ? ` ${diff % 60}m` : ''}`
+              : ''
 
           return (
             <div
