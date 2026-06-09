@@ -210,7 +210,12 @@ function TrainList({
     )
   }
 
-  let foundNext = false
+  // Past: show only last 2; upcoming: first 2 get yellow highlight
+  const pastRows   = isToday ? rows.filter(r => toMins(r.dep) < cur - 1) : []
+  const futureRows = isToday ? rows.filter(r => toMins(r.dep) >= cur - 1) : rows
+  const visible    = [...pastRows.slice(-2), ...futureRows]
+
+  let upcomingCount = 0
 
   return (
     <div>
@@ -220,13 +225,12 @@ function TrainList({
       </div>
 
       <div className="border border-gray-200 rounded-xl overflow-hidden">
-        {rows.map((r, i) => {
+        {visible.map((r, i) => {
           const depM   = toMins(r.dep)
           const isPast = isToday && depM < cur - 1
-          const isNext = isToday && !foundNext && depM >= cur
-          const isSoon = isToday && !isNext && depM >= cur && depM < cur + 20
-          if (isNext) foundNext = true
-          const diff = isToday && !isPast ? depM - cur : -1
+          if (!isPast) upcomingCount++
+          const isYellow = isToday && !isPast && upcomingCount <= 2
+          const diff     = isToday && !isPast ? depM - cur : -1
 
           return (
             <div
@@ -234,15 +238,14 @@ function TrainList({
               style={{ gridTemplateColumns: hasDest ? '1fr auto 1fr 56px' : '1fr 56px' }}
               className={[
                 'grid items-center gap-3 px-4 py-3 text-sm border-b border-gray-100 last:border-0',
-                isNext ? 'bg-green-50 border-l-4 border-l-green-500'
-                  : isSoon ? 'border-l-4 border-l-amber-400'
+                isYellow ? 'bg-yellow-50 border-l-4 border-l-yellow-400'
                   : isPast ? 'opacity-25 border-l-4 border-l-transparent'
                   : 'border-l-4 border-l-transparent',
               ].join(' ')}
             >
               <span className={[
                 'font-mono font-medium',
-                isNext ? 'text-green-700' : isSoon ? 'text-amber-700' : 'text-gray-900',
+                isYellow ? 'text-yellow-700' : 'text-gray-900',
               ].join(' ')}>
                 {fmt12(r.dep)}
               </span>
@@ -256,7 +259,7 @@ function TrainList({
 
               <span className={[
                 'font-mono text-xs text-right',
-                isNext ? 'text-green-600' : isSoon ? 'text-amber-600' : 'text-gray-400',
+                isYellow ? 'text-yellow-600' : 'text-gray-400',
               ].join(' ')}>
                 {isPast ? 'passed' : diff === 0 ? 'now' : diff > 0 ? `${diff}m` : ''}
               </span>
@@ -297,8 +300,11 @@ export default function TripPlanner({ data }: { data: ScheduleData }) {
   const isNoSvc = isToday && nowMins() < 270
 
   const onFromChange = (val: string) => {
-    setFrom(val); setTo(''); setShowTo(false); setSearched(false)
-    setWarnPhilly(!!val && PHILLY_STATIONS.has(val))
+    const isPhilly = !!val && PHILLY_STATIONS.has(val)
+    const terminal = isPhilly ? 'Lindenwold' : '15/16th & Locust'
+    const defaultTo = val && val !== terminal ? terminal : ''
+    setFrom(val); setTo(defaultTo); setShowTo(!!defaultTo); setSearched(false)
+    setWarnPhilly(isPhilly)
   }
 
   const selectDate = (d: Date) => { setSelectedDate(d); setSearched(false) }
@@ -383,10 +389,10 @@ export default function TripPlanner({ data }: { data: ScheduleData }) {
             className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">Select departure station</option>
-            <optgroup label="Westbound → 15/16th &amp; Locust (toward Philadelphia)">
+            <optgroup label="NJ Stations (Westbound → Philadelphia)">
               {NJ_STATIONS.map(s => <option key={s} value={s}>{s}</option>)}
             </optgroup>
-            <optgroup label="Eastbound → Lindenwold (toward New Jersey)">
+            <optgroup label="Philly Stations (Eastbound → New Jersey)">
               {PHILLY_LIST.map(s => <option key={s} value={s}>{s}</option>)}
             </optgroup>
           </select>
