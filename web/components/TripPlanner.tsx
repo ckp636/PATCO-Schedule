@@ -32,6 +32,9 @@ const PHILLY_STATIONS = new Set([
   '12/13th & Locust', '15/16th & Locust',
 ])
 
+const NJ_STATIONS    = STATIONS.filter(s => !PHILLY_STATIONS.has(s))
+const PHILLY_LIST    = STATIONS.filter(s =>  PHILLY_STATIONS.has(s))
+
 // ── Utilities ─────────────────────────────────────────────────────────────────
 const pad = (n: number) => String(n).padStart(2, '0')
 
@@ -273,10 +276,12 @@ export default function TripPlanner({ data }: { data: ScheduleData }) {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date(todayDate))
   const [from,         setFrom]         = useState('')
   const [to,           setTo]           = useState('')
-  const [dir,          setDir]          = useState<'eastbound' | 'westbound'>('westbound')
   const [showTo,       setShowTo]       = useState(false)
   const [warnPhilly,   setWarnPhilly]   = useState(false)
   const [searched,     setSearched]     = useState(false)
+
+  // Direction is fully derived from the chosen station — no separate state needed
+  const dir: 'eastbound' | 'westbound' = from && PHILLY_STATIONS.has(from) ? 'eastbound' : 'westbound'
 
   const confirmedCount = data.confirmed_dates?.length ?? 7
   const specialDates   = new Set(Object.keys(data.special_dates ?? {}))
@@ -291,20 +296,9 @@ export default function TripPlanner({ data }: { data: ScheduleData }) {
   const trains  = data.schedule[dayType][dir] ?? []
   const isNoSvc = isToday && nowMins() < 270
 
-  const dirLabel = dir === 'westbound'
-    ? 'Westbound → 15/16th & Locust'
-    : 'Eastbound → Lindenwold'
-
   const onFromChange = (val: string) => {
     setFrom(val); setTo(''); setShowTo(false); setSearched(false)
-    if (!val) { setWarnPhilly(false); return }
-    const isPhilly = PHILLY_STATIONS.has(val)
-    setDir(isPhilly ? 'eastbound' : 'westbound')
-    setWarnPhilly(isPhilly)
-  }
-
-  const onDirChange = (val: 'eastbound' | 'westbound') => {
-    setDir(val); setTo(''); setWarnPhilly(false); setSearched(false)
+    setWarnPhilly(!!val && PHILLY_STATIONS.has(val))
   }
 
   const selectDate = (d: Date) => { setSelectedDate(d); setSearched(false) }
@@ -312,14 +306,14 @@ export default function TripPlanner({ data }: { data: ScheduleData }) {
   const doSearch = () => { if (from) setSearched(true) }
 
   const clearAll = () => {
-    setFrom(''); setTo(''); setDir('westbound')
+    setFrom(''); setTo('')
     setShowTo(false); setWarnPhilly(false); setSearched(false)
     setSelectedDate(new Date(todayDate))
   }
 
   const rideNow = () => {
     setSelectedDate(new Date(todayDate))
-    if (!from) { setFrom(STATIONS[0]); setDir('westbound') }
+    if (!from) setFrom(NJ_STATIONS[0])
     setSearched(true)
   }
 
@@ -378,7 +372,7 @@ export default function TripPlanner({ data }: { data: ScheduleData }) {
       {/* Search card */}
       <div className="bg-white border border-gray-200 rounded-xl p-4 mb-4 shadow-sm space-y-4">
 
-        {/* From */}
+        {/* From — combined station + direction via optgroups */}
         <div>
           <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1.5">
             From <span className="text-red-500">*</span>
@@ -389,27 +383,17 @@ export default function TripPlanner({ data }: { data: ScheduleData }) {
             className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">Select departure station</option>
-            {STATIONS.map(s => <option key={s} value={s}>{s}</option>)}
+            <optgroup label="Westbound → 15/16th &amp; Locust (toward Philadelphia)">
+              {NJ_STATIONS.map(s => <option key={s} value={s}>{s}</option>)}
+            </optgroup>
+            <optgroup label="Eastbound → Lindenwold (toward New Jersey)">
+              {PHILLY_LIST.map(s => <option key={s} value={s}>{s}</option>)}
+            </optgroup>
           </select>
         </div>
 
         {from && (
           <>
-            {/* Direction pill + override */}
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg text-sm font-medium">
-                {dirLabel}
-              </span>
-              <select
-                value={dir}
-                onChange={e => onDirChange(e.target.value as 'eastbound' | 'westbound')}
-                className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 text-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-400"
-              >
-                <option value="westbound">Westbound → 15/16th & Locust</option>
-                <option value="eastbound">Eastbound → Lindenwold</option>
-              </select>
-            </div>
-
             {/* Philly warning */}
             {warnPhilly && (
               <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800">
