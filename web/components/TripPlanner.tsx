@@ -19,6 +19,16 @@ export interface ScheduleData {
   confirmed_dates?: string[]
 }
 
+// ── Special schedule dates (FIFA World Cup 2026 Philadelphia matches) ──────────
+const SPECIAL: Record<string, { note: string; pdf_url: string }> = {
+  '2026-06-14': { note: 'FIFA World Cup · Côte d\'Ivoire vs Ecuador · Trains every 15 min 10am–6:30pm', pdf_url: 'https://www.ridepatco.org/worldcup/' },
+  '2026-06-19': { note: 'FIFA World Cup (Juneteenth) · Brazil vs Haiti · Holiday enhanced service',      pdf_url: 'https://www.ridepatco.org/worldcup/' },
+  '2026-06-22': { note: 'FIFA World Cup · France vs Iraq · Six-car trains',                               pdf_url: 'https://www.ridepatco.org/worldcup/' },
+  '2026-06-25': { note: 'FIFA World Cup · Curaçao vs Côte d\'Ivoire · Six-car trains',                    pdf_url: 'https://www.ridepatco.org/worldcup/' },
+  '2026-06-27': { note: 'FIFA World Cup · Croatia vs Ghana · Trains every 15 min 7:30am–7:30pm',         pdf_url: 'https://www.ridepatco.org/worldcup/' },
+  '2026-07-04': { note: 'FIFA World Cup Round of 16 (Independence Day) · Trains every 10 min 10am–11:30pm', pdf_url: 'https://www.ridepatco.org/worldcup/' },
+}
+
 // ── Constants ─────────────────────────────────────────────────────────────────
 const STATIONS = [
   'Lindenwold', 'Ashland', 'Woodcrest', 'Haddonfield', 'Westmont',
@@ -304,9 +314,10 @@ export default function TripPlanner({ data }: { data: ScheduleData }) {
   // Direction is fully derived from the chosen station — no separate state needed
   const dir: 'eastbound' | 'westbound' = from && PHILLY_STATIONS.has(from) ? 'eastbound' : 'westbound'
 
-  const confirmedCount = data.confirmed_dates?.length ?? 7
-  const specialDates   = new Set(Object.keys(data.special_dates ?? {}))
-  const specialForDate = data.special_dates?.[toKey(selectedDate)]
+  const confirmedCount = data.confirmed_dates?.length ?? 14
+  const mergedSpecial  = { ...SPECIAL, ...(data.special_dates ?? {}) }
+  const specialDates   = new Set(Object.keys(mergedSpecial))
+  const specialForDate = mergedSpecial[toKey(selectedDate)]
 
   const orderedStations = dir === 'westbound' ? STATIONS : [...STATIONS].reverse()
   const fromIdx         = orderedStations.indexOf(from)
