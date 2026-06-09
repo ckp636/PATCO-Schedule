@@ -219,11 +219,20 @@ function TrainList({
 
   return (
     <div>
-      {/* Single-line header: station name(s) + train count */}
-      <div className="flex items-center justify-between mb-2 px-1">
-        <span className="text-sm font-bold text-gray-900 uppercase tracking-wide">
-          {from}{hasDest && ` → ${to}`}
-        </span>
+      {/* Header row — grid-aligned with data columns */}
+      <div
+        style={{ gridTemplateColumns: hasDest ? '1fr auto 1fr' : '1fr' }}
+        className="grid items-center gap-3 px-4 mb-2"
+      >
+        <span className="text-sm font-bold text-gray-900 uppercase tracking-wide">{from}</span>
+        {hasDest && (
+          <>
+            <span className="text-base font-bold text-gray-400">→</span>
+            <span className="text-sm font-bold text-gray-900 uppercase tracking-wide">{to}</span>
+          </>
+        )}
+      </div>
+      <div className="flex justify-end px-1 mb-2">
         <span className="text-sm font-bold text-gray-900">{rows.length} trains</span>
       </div>
 
@@ -268,7 +277,7 @@ function TrainList({
 
               {hasDest && (
                 <>
-                  <span className="text-gray-300 text-xs">→</span>
+                  <span className="text-base text-gray-300">→</span>
                   <span className="font-mono text-gray-500">{fmt12(r.arr)}</span>
                 </>
               )}
@@ -404,18 +413,9 @@ export default function TripPlanner({ data }: { data: ScheduleData }) {
               </button>
             ) : (
               <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-gray-500">
-                    To{' '}
-                    <span className="font-normal normal-case text-gray-400">(optional)</span>
-                  </label>
-                  <button
-                    onClick={() => { setShowTo(false); setTo('') }}
-                    className="text-xs text-gray-400 hover:text-gray-600"
-                  >
-                    ✕ Remove
-                  </button>
-                </div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1.5">
+                  To
+                </label>
                 <select
                   value={to}
                   onChange={e => setTo(e.target.value)}
