@@ -21,12 +21,12 @@ export interface ScheduleData {
 
 // ── Special schedule dates (FIFA World Cup 2026 Philadelphia matches) ──────────
 const SPECIAL: Record<string, { note: string; pdf_url: string }> = {
-  '2026-06-14': { note: 'FIFA World Cup · Côte d\'Ivoire vs Ecuador · Trains every 15 min 10am–6:30pm', pdf_url: 'https://www.ridepatco.org/worldcup/' },
-  '2026-06-19': { note: 'FIFA World Cup (Juneteenth) · Brazil vs Haiti · Holiday enhanced service',      pdf_url: 'https://www.ridepatco.org/worldcup/' },
-  '2026-06-22': { note: 'FIFA World Cup · France vs Iraq · Six-car trains',                               pdf_url: 'https://www.ridepatco.org/worldcup/' },
-  '2026-06-25': { note: 'FIFA World Cup · Curaçao vs Côte d\'Ivoire · Six-car trains',                    pdf_url: 'https://www.ridepatco.org/worldcup/' },
-  '2026-06-27': { note: 'FIFA World Cup · Croatia vs Ghana · Trains every 15 min 7:30am–7:30pm',         pdf_url: 'https://www.ridepatco.org/worldcup/' },
-  '2026-07-04': { note: 'FIFA World Cup Round of 16 (Independence Day) · Trains every 10 min 10am–11:30pm', pdf_url: 'https://www.ridepatco.org/worldcup/' },
+  '2026-06-14': { note: 'FIFA World Cup · Côte d\'Ivoire vs Ecuador · Trains every 15 min 10am–6:30pm', pdf_url: 'https://www.ridepatco.org/schedules/schedules.asp' },
+  '2026-06-19': { note: 'FIFA World Cup (Juneteenth) · Brazil vs Haiti · Holiday enhanced service',      pdf_url: 'https://www.ridepatco.org/schedules/schedules.asp' },
+  '2026-06-22': { note: 'FIFA World Cup · France vs Iraq · Six-car trains',                               pdf_url: 'https://www.ridepatco.org/schedules/schedules.asp' },
+  '2026-06-25': { note: 'FIFA World Cup · Curaçao vs Côte d\'Ivoire · Six-car trains',                    pdf_url: 'https://www.ridepatco.org/schedules/schedules.asp' },
+  '2026-06-27': { note: 'FIFA World Cup · Croatia vs Ghana · Trains every 15 min 7:30am–7:30pm',         pdf_url: 'https://www.ridepatco.org/schedules/schedules.asp' },
+  '2026-07-04': { note: 'FIFA World Cup Round of 16 (Independence Day) · Trains every 10 min 10am–11:30pm', pdf_url: 'https://www.ridepatco.org/schedules/schedules.asp' },
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
