@@ -348,34 +348,7 @@ export default function TripPlanner({ data }: { data: ScheduleData }) {
         </p>
       </div>
 
-      {/* Ride Now */}
-      <button
-        onClick={rideNow}
-        className="w-full py-3 mb-6 bg-green-50 border border-green-300 text-green-800 font-semibold rounded-xl hover:bg-green-100 transition-colors"
-      >
-        ▶ Ride now
-      </button>
-
-      {/* Calendar */}
-      <section className="mb-5">
-        <h2 className="text-sm font-semibold text-gray-600 mb-3">
-          📅{' '}
-          {selectedDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-        </h2>
-        <CalendarGrid
-          selected={selectedDate}
-          onSelect={selectDate}
-          specialDates={specialDates}
-          confirmedCount={confirmedCount}
-        />
-      </section>
-
-      <p className="text-xs text-gray-500 mb-5">
-        {isToday && 'Today · '}
-        {selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-      </p>
-
-      {/* Search card */}
+      {/* 1. Search card (From / To) */}
       <div className="bg-white border border-gray-200 rounded-xl p-4 mb-4 shadow-sm space-y-4">
 
         {/* From — combined station + direction via optgroups */}
@@ -448,7 +421,34 @@ export default function TripPlanner({ data }: { data: ScheduleData }) {
         )}
       </div>
 
-      {/* Action buttons */}
+      {/* 2. Calendar */}
+      <section className="mb-5">
+        <h2 className="text-sm font-semibold text-gray-600 mb-3">
+          📅{' '}
+          {selectedDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+        </h2>
+        <CalendarGrid
+          selected={selectedDate}
+          onSelect={selectDate}
+          specialDates={specialDates}
+          confirmedCount={confirmedCount}
+        />
+      </section>
+
+      <p className="text-xs text-gray-500 mb-5">
+        {isToday && 'Today · '}
+        {selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+      </p>
+
+      {/* 3. Ride Now */}
+      <button
+        onClick={rideNow}
+        className="w-full py-3 mb-4 bg-green-50 border border-green-300 text-green-800 font-semibold rounded-xl hover:bg-green-100 transition-colors"
+      >
+        ▶ Ride now
+      </button>
+
+      {/* 4. Find trains + Clear */}
       <div className="flex gap-3 mb-6">
         <button
           onClick={doSearch}
