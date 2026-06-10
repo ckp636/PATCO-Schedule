@@ -454,8 +454,9 @@ export default function TripPlanner({ data }: { data: ScheduleData }) {
   }
 
   const rideNow = () => {
+    if (!from) { setWarnNoStation(true); return }
+    setWarnNoStation(false)
     setSelectedDate(new Date(todayDate))
-    if (!from) setFrom(NJ_STATIONS[0])
     setFilterTime('')
     setSearched(true)
   }
