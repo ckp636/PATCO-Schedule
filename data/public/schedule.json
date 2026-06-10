@@ -1,6 +1,6 @@
 {
   "effective_date": "2025-12-01",
-  "generated_at": "2026-06-10T16:02:27.329816+00:00",
+  "generated_at": "2026-06-10T22:24:31.352933+00:00",
   "trips": [
     {
       "direction": "NJ_TO_PHILLY",
@@ -23160,5 +23160,6 @@
         }
       ]
     }
-  ]
+  ],
+  "special_dates": {}
 }
