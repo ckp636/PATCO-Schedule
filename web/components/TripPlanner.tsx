@@ -577,9 +577,11 @@ export default function TripPlanner({ data }: { data: ScheduleData }) {
         <span>
           Unofficial · Not affiliated with PATCO ·{' '}
           <a href="https://ridepatco.org" className="text-blue-400 hover:underline">ridepatco.org</a>
+          {' '}·{' '}
+          <a href="/about" className="text-blue-400 hover:underline">About</a>
         </span>
         <a
-          href="mailto:ckp636@gmail.com?subject=PATCO Schedule Issue"
+          href="mailto:cs635@drexel.edu?subject=PATCO Schedule Issue"
           className="hover:text-gray-600 flex items-center gap-1"
         >
           ✉ Report an issue
