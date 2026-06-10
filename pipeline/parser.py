@@ -11,8 +11,15 @@ Weekday vs. weekend table layout differ significantly:
   Weekend (page 2, 14 cols): each cell = exactly 2 departures separated by '\n'.
   Weekday (page 1, 10 cols): pdfplumber misaligns column boundaries for the first ~5
     columns; times for consecutive stations bleed across cell edges.
-    Fix: concatenate all cells per slot row WITHOUT a separator, then regex-find all
-    complete times; map to the 14 canonical stations in direction order.
+    Fix (NJ_TO_PHILLY): concatenate all cells per slot row WITHOUT a separator, then
+    regex-find all complete times; map to the 14 canonical stations in direction order.
+
+PHILLY_TO_NJ direction uses word-level extraction for both weekday and weekend to fix:
+  1. Weekday EB: 15/16th & Locust time (4:30A etc.) sits ~7px left of the detected table
+     x0 boundary and is silently dropped by cell extraction.
+  2. Weekend EB early-AM rows: 12:xx times for Franklin Square bleed across the column
+     boundary — the leading '1' ends up in the 8th-Market cell, leaving '2:11A' instead
+     of '12:11A'. Word extraction captures the full token correctly.
 """
 
 from __future__ import annotations
@@ -31,6 +38,9 @@ TIME_RE = re.compile(r'\b(\d{1,2}:\d{2})\s*([AaPp])\b')
 
 # Weekday concatenated rows: no \b — times are jammed together like '4:30A4:32A'.
 _CONCAT_TIME_RE = re.compile(r'(\d{1,2}:\d{2})([AaPp])')
+
+# Word-level extraction: matches complete time tokens like '4:30A' or '12:05P'.
+_TIME_WORD_RE = re.compile(r'^\d{1,2}:\d{2}[AaPp]$')
 
 # Station order for weekday canonical mapping (direction determines which end is first).
 _CANONICAL_STATIONS: dict[str, list[str]] = {
@@ -156,6 +166,76 @@ def _detect_direction(header_cell: str) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Word-level trip extractor (used for all PHILLY_TO_NJ tables)
+# ---------------------------------------------------------------------------
+
+def _parse_philly_to_nj_by_words(page, table_bbox: tuple, service_type: str) -> list[Trip]:
+    """
+    Extract PHILLY_TO_NJ trips using word-level extraction.
+
+    Fixes two PDF quirks that break cell-level extraction:
+    - Weekday: 15/16th & Locust time sits just left of the detected table x0
+    - Weekend early-AM: 12:xx Franklin Square times bleed across column boundaries
+
+    Strategy:
+      1. Expand the search bbox 15px left to catch the first-column overflow.
+      2. Find all time-format words, group by y-position (4pt buckets).
+      3. Calibrate column x-centers from the first row that has all 14 times.
+      4. Map every word to its nearest column center; produce stops with None
+         for stations whose PDF text is genuinely unreadable.
+    """
+    from collections import defaultdict
+
+    direction = 'PHILLY_TO_NJ'
+    stations = _CANONICAL_STATIONS[direction]
+    n = len(stations)
+
+    x0, top, x1, bottom = table_bbox
+    try:
+        words = page.within_bbox((x0 - 15, top, x1, bottom)).extract_words()
+    except Exception:
+        return []
+
+    time_words = [w for w in words if _TIME_WORD_RE.match(w['text'])]
+
+    # Group by y-row (4pt tolerance for same-line offsets)
+    rows_by_y: dict = defaultdict(list)
+    for w in time_words:
+        rows_by_y[round(w['top'] / 4) * 4].append(w)
+
+    # Calibrate column x-centers from first complete row (all n times present)
+    col_centers: list[float] | None = None
+    for y in sorted(rows_by_y.keys()):
+        row_w = sorted(rows_by_y[y], key=lambda w: w['x0'])
+        if len(row_w) == n:
+            col_centers = [w['x0'] for w in row_w]
+            break
+
+    if col_centers is None:
+        col_w = (x1 - x0) / n
+        col_centers = [x0 + (i + 0.5) * col_w for i in range(n)]
+
+    trips: list[Trip] = []
+    for y in sorted(rows_by_y.keys()):
+        row_w = sorted(rows_by_y[y], key=lambda w: w['x0'])
+        if len(row_w) < 2:
+            continue  # skip header / mileage rows
+
+        times: list[str | None] = [None] * n
+        for w in row_w:
+            col_i = min(range(n), key=lambda i: abs(col_centers[i] - w['x0']))
+            if abs(col_centers[col_i] - w['x0']) <= 12:
+                times[col_i] = _norm_concat_time(w['text'])
+
+        stops = [{'station': s, 'time': t}
+                 for s, t in zip(stations, times) if t is not None]
+        if len(stops) >= 2:
+            trips.append(Trip(direction=direction, service_type=service_type, stops=stops))
+
+    return trips
+
+
+# ---------------------------------------------------------------------------
 # Table parsers
 # ---------------------------------------------------------------------------
 
@@ -228,9 +308,6 @@ def _parse_weekday_table(table: list[list[str | None]], service_type: str) -> li
             n = len(normalized)
             if n == len(stations):
                 used_stations = stations
-            elif n == len(stations) - 1 and direction == 'PHILLY_TO_NJ':
-                # Eastbound weekday timetable omits 15/16th & Locust (first station)
-                used_stations = stations[1:]
             else:
                 continue   # mileage row, text row, or partial — skip
 
@@ -281,7 +358,10 @@ def parse_pdf(pdf_path: Path, source_url: str = '') -> Schedule:
                           if table_top - 60 < w['top'] < table_top]
                 service_type = _service_from_nearby_words(nearby) or page_service
 
-                if service_type == 'weekday':
+                direction = _detect_direction(str(tdata[0][0] if tdata else ''))
+                if direction == 'PHILLY_TO_NJ':
+                    trips = _parse_philly_to_nj_by_words(page, tobj.bbox, service_type)
+                elif service_type == 'weekday':
                     trips = _parse_weekday_table(tdata, service_type)
                 else:
                     trips = _parse_weekend_table(tdata, service_type)
