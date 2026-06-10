@@ -26,7 +26,7 @@ jobs:
         run: pip install -r pipeline/requirements.txt
 
       - name: Run pipeline
-        run: python pipeline/main.py --force
+        run: python pipeline/main.py
         working-directory: ${{ github.workspace }}
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_CS614 }}
