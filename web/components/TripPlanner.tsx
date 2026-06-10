@@ -406,8 +406,9 @@ export default function TripPlanner({ data }: { data: ScheduleData }) {
   const [showTo,       setShowTo]       = useState(false)
   const [warnPhilly,   setWarnPhilly]   = useState(false)
   const [warnNJ,       setWarnNJ]       = useState(false)
-  const [filterTime,   setFilterTime]   = useState('')
-  const [searched,     setSearched]     = useState(false)
+  const [filterTime,      setFilterTime]      = useState('')
+  const [warnNoStation,   setWarnNoStation]   = useState(false)
+  const [searched,        setSearched]        = useState(false)
 
   // Direction is fully derived from the chosen station — no separate state needed
   const dir: 'eastbound' | 'westbound' = from && PHILLY_STATIONS.has(from) ? 'eastbound' : 'westbound'
@@ -434,16 +435,21 @@ export default function TripPlanner({ data }: { data: ScheduleData }) {
     setFrom(val); setTo(defaultTo); setShowTo(!!defaultTo); setSearched(false)
     setWarnPhilly(isPhilly)
     setWarnNJ(isNJ)
+    setWarnNoStation(false)
   }
 
   const selectDate = (d: Date) => { setSelectedDate(d); setSearched(false) }
 
-  const doSearch = () => { if (from) setSearched(true) }
+  const doSearch = () => {
+    if (!from) { setWarnNoStation(true); return }
+    setWarnNoStation(false)
+    setSearched(true)
+  }
 
   const clearAll = () => {
     setFrom(''); setTo('')
     setShowTo(false); setWarnPhilly(false); setWarnNJ(false)
-    setFilterTime(''); setSearched(false)
+    setFilterTime(''); setWarnNoStation(false); setSearched(false)
     setSelectedDate(new Date(todayDate))
   }
 
@@ -586,11 +592,10 @@ export default function TripPlanner({ data }: { data: ScheduleData }) {
       </div>
 
       {/* 4. Find trains + Clear */}
-      <div className="flex gap-3 mb-6">
+      <div className="flex gap-3 mb-2">
         <button
           onClick={doSearch}
-          disabled={!from}
-          className="flex-1 py-2.5 bg-blue-50 border border-blue-300 text-blue-700 font-semibold rounded-xl hover:bg-blue-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          className="flex-1 py-2.5 bg-blue-50 border border-blue-300 text-blue-700 font-semibold rounded-xl hover:bg-blue-100 transition-colors"
         >
           🔍 Find trains
         </button>
@@ -601,6 +606,12 @@ export default function TripPlanner({ data }: { data: ScheduleData }) {
           ✕ Clear
         </button>
       </div>
+
+      {warnNoStation && (
+        <p className="mb-4 px-1 text-xs text-red-600 font-medium">
+          ⚠ Please select a departure station first.
+        </p>
+      )}
 
       {/* Results */}
       {searched && (
