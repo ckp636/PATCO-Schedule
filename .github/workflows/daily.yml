@@ -32,14 +32,39 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_CS614 }}
 
       - name: Commit updated schedule (if changed)
+        id: commit
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add data/public/schedule.json data/audit/.last_digest
           if git diff --staged --quiet; then
             echo "No changes to commit."
+            echo "changed=false" >> $GITHUB_OUTPUT
           else
             git commit -m "chore: refresh schedule $(date -u +%Y-%m-%d)"
             git push
+            echo "changed=true" >> $GITHUB_OUTPUT
           fi
-# end of workflow
+
+      - name: Send email notification
+        if: steps.commit.outputs.changed == 'true'
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          to: ckp636@gmail.com
+          from: PATCO Schedule Bot <${{ secrets.MAIL_USERNAME }}>
+          subject: "PATCO Timetable Updated — ${{ github.run_id }}"
+          body: |
+            The PATCO Speedline timetable has been updated!
+
+            A new schedule PDF was detected and parsed on $(date -u +"%B %d, %Y").
+
+            View the updated schedule:
+            https://patco-schedule-app.vercel.app
+
+            ---
+            This is an automated message from your PATCO Schedule pipeline.

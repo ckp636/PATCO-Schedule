@@ -32,13 +32,39 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_CS614 }}
 
       - name: Commit if changed
+        id: commit
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add data/public/schedule.json
           if git diff --staged --quiet; then
             echo "No special schedule changes."
+            echo "changed=false" >> $GITHUB_OUTPUT
           else
             git commit -m "chore: update special schedules $(date -u +%Y-%m-%d)"
             git push
+            echo "changed=true" >> $GITHUB_OUTPUT
           fi
+
+      - name: Send email notification
+        if: steps.commit.outputs.changed == 'true'
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          to: ckp636@gmail.com
+          from: PATCO Schedule Bot <${{ secrets.MAIL_USERNAME }}>
+          subject: "PATCO Special Schedule Detected — ${{ github.run_id }}"
+          body: |
+            A new PATCO special schedule has been detected!
+
+            The schedule app has been updated with new special service dates.
+
+            View the updated schedule:
+            https://patco-schedule-app.vercel.app
+
+            ---
+            This is an automated message from your PATCO Schedule pipeline.
