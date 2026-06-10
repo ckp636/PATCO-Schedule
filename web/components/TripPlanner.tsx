@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type Train = Record<string, string | null>
@@ -45,13 +45,11 @@ const PHILLY_STATIONS = new Set([
 const NJ_STATIONS    = STATIONS.filter(s => !PHILLY_STATIONS.has(s))
 const PHILLY_LIST    = STATIONS.filter(s =>  PHILLY_STATIONS.has(s))
 
-// Time-filter dropdown options every 10 minutes, ordered noon-first so the list
-// opens near midday instead of requiring a long scroll from midnight.
-// value = HH:MM 24hr; special labels for Noon and Midnight.
+// Time-filter options every 10 min in natural order (Midnight → 11:50 PM).
+// Scroll position to noon is handled by TimeScrollPicker, not by list order.
 const TIME_OPTIONS = Array.from({ length: 144 }, (_, i) => {
-  const totalMins = ((i + 72) * 10) % 1440   // offset 72 slots = 12 h → start at noon
-  const h = Math.floor(totalMins / 60)
-  const m = totalMins % 60
+  const h = Math.floor(i * 10 / 60)
+  const m = (i * 10) % 60
   const value = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
   const label =
     h === 12 && m === 0 ? 'Noon' :
@@ -59,6 +57,10 @@ const TIME_OPTIONS = Array.from({ length: 144 }, (_, i) => {
     `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`
   return { value, label }
 })
+
+const ALL_TIME_OPTIONS = [{ value: '', label: 'Any time' }, ...TIME_OPTIONS]
+// Index of Noon (12:00) in ALL_TIME_OPTIONS — used to pre-scroll the picker
+const NOON_IDX = ALL_TIME_OPTIONS.findIndex(o => o.value === '12:00')
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
 const pad = (n: number) => String(n).padStart(2, '0')
@@ -93,6 +95,77 @@ const getDayType = (d: Date): 'weekday' | 'saturday' | 'sunday' => {
   if (day === 0) return 'sunday'
   if (day === 6) return 'saturday'
   return 'weekday'
+}
+
+// ── TimeScrollPicker ──────────────────────────────────────────────────────────
+const ITEM_H = 36  // px per row in the scroll list
+
+function TimeScrollPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(false)
+  const listRef = useRef<HTMLDivElement>(null)
+
+  // When the popover opens, scroll so noon (or the current selection) sits in the center
+  useEffect(() => {
+    if (!open || !listRef.current) return
+    const idx = value ? ALL_TIME_OPTIONS.findIndex(o => o.value === value) : NOON_IDX
+    const containerH = listRef.current.clientHeight
+    listRef.current.scrollTop = idx * ITEM_H - containerH / 2 + ITEM_H / 2
+  }, [open])
+
+  const selectedLabel = ALL_TIME_OPTIONS.find(o => o.value === value)?.label ?? 'Any time'
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="h-full border border-gray-300 rounded-xl px-3 text-sm bg-white text-gray-700 flex items-center gap-1.5 whitespace-nowrap min-w-[110px]"
+      >
+        <span className="text-gray-400 text-base">🕐</span>
+        <span className="flex-1 text-left">{selectedLabel}</span>
+        {value ? (
+          <span
+            role="button"
+            aria-label="Clear time filter"
+            onClick={e => { e.stopPropagation(); onChange(''); setOpen(false) }}
+            className="text-gray-300 hover:text-gray-500 text-xs"
+          >✕</span>
+        ) : (
+          <span className="text-gray-300 text-xs">▾</span>
+        )}
+      </button>
+
+      {open && (
+        <>
+          {/* backdrop — click outside to close */}
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+
+          {/* scrollable list, 7 rows visible, noon centered on open */}
+          <div
+            ref={listRef}
+            className="absolute right-0 top-full mt-1 z-20 w-40 border border-gray-200 rounded-xl bg-white shadow-lg overflow-y-auto"
+            style={{ height: ITEM_H * 7 }}
+          >
+            {ALL_TIME_OPTIONS.map(o => (
+              <div
+                key={o.value === '' ? '__any__' : o.value}
+                onClick={() => { onChange(o.value); setOpen(false) }}
+                style={{ height: ITEM_H }}
+                className={[
+                  'flex items-center px-4 cursor-pointer text-sm select-none',
+                  o.value === value
+                    ? 'bg-blue-50 text-blue-700 font-semibold'
+                    : 'text-gray-700 hover:bg-gray-50',
+                ].join(' ')}
+              >
+                {o.label}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  )
 }
 
 // ── CalendarGrid ──────────────────────────────────────────────────────────────
@@ -508,16 +581,7 @@ export default function TripPlanner({ data }: { data: ScheduleData }) {
         >
           ▶ Ride now
         </button>
-        <select
-          value={filterTime}
-          onChange={e => setFilterTime(e.target.value)}
-          className="border border-gray-300 rounded-xl px-3 py-3 text-sm bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="">🕐 Any time</option>
-          {TIME_OPTIONS.map(o => (
-            <option key={o.value} value={o.value}>{o.label}</option>
-          ))}
-        </select>
+        <TimeScrollPicker value={filterTime} onChange={setFilterTime} />
       </div>
 
       {/* 4. Find trains + Clear */}
