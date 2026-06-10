@@ -450,6 +450,7 @@ export default function TripPlanner({ data }: { data: ScheduleData }) {
   const rideNow = () => {
     setSelectedDate(new Date(todayDate))
     if (!from) setFrom(NJ_STATIONS[0])
+    setFilterTime('')
     setSearched(true)
   }
 
