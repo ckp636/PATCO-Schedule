@@ -309,6 +309,7 @@ export default function TripPlanner({ data }: { data: ScheduleData }) {
   const [to,           setTo]           = useState('')
   const [showTo,       setShowTo]       = useState(false)
   const [warnPhilly,   setWarnPhilly]   = useState(false)
+  const [warnNJ,       setWarnNJ]       = useState(false)
   const [searched,     setSearched]     = useState(false)
 
   // Direction is fully derived from the chosen station — no separate state needed
@@ -330,10 +331,12 @@ export default function TripPlanner({ data }: { data: ScheduleData }) {
 
   const onFromChange = (val: string) => {
     const isPhilly = !!val && PHILLY_STATIONS.has(val)
+    const isNJ     = !!val && !PHILLY_STATIONS.has(val)
     const terminal = isPhilly ? 'Lindenwold' : '15/16th & Locust'
     const defaultTo = val && val !== terminal ? terminal : ''
     setFrom(val); setTo(defaultTo); setShowTo(!!defaultTo); setSearched(false)
     setWarnPhilly(isPhilly)
+    setWarnNJ(isNJ)
   }
 
   const selectDate = (d: Date) => { setSelectedDate(d); setSearched(false) }
@@ -342,7 +345,7 @@ export default function TripPlanner({ data }: { data: ScheduleData }) {
 
   const clearAll = () => {
     setFrom(''); setTo('')
-    setShowTo(false); setWarnPhilly(false); setSearched(false)
+    setShowTo(false); setWarnPhilly(false); setWarnNJ(false); setSearched(false)
     setSelectedDate(new Date(todayDate))
   }
 
@@ -409,6 +412,18 @@ export default function TripPlanner({ data }: { data: ScheduleData }) {
                 <span>
                   Starting from Philadelphia — defaulted to{' '}
                   <strong>Eastbound → Lindenwold</strong>.
+                  Change direction above if needed.
+                </span>
+              </div>
+            )}
+
+            {/* NJ warning */}
+            {warnNJ && (
+              <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-800">
+                <span className="shrink-0 mt-0.5">⚠️</span>
+                <span>
+                  Starting from New Jersey — defaulted to{' '}
+                  <strong>Westbound → 15/16th &amp; Locust</strong>.
                   Change direction above if needed.
                 </span>
               </div>
