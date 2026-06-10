@@ -344,9 +344,9 @@ function TrainList({
         <div className="overflow-y-auto max-h-[440px]">
           {visible.map((r, i) => {
             const depM   = toMins(r.dep)
-            const isPast = isToday && filterMins < 0 && depM < cur - 1
+            const isPast = isToday && depM < cur - 1
             if (!isPast) upcomingCount++
-            const isYellow = isToday && filterMins < 0 && !isPast && upcomingCount <= 2
+            const isYellow = isToday && !isPast && upcomingCount <= 2
             const diff     = isToday && !isPast ? depM - cur : -1
             const badge    = isPast ? 'passed'
               : diff === 0 ? 'now'
@@ -478,11 +478,10 @@ export default function TripPlanner({ data }: { data: ScheduleData }) {
             </p>
           </div>
         </div>
-        <p className="text-xs text-gray-400">
-          Updated{' '}
-          {new Date(data.generated_at).toLocaleTimeString('en-US', {
-            hour: 'numeric', minute: '2-digit',
-          })}
+        <p className="text-xs text-gray-400 flex items-center gap-2">
+          <a href="/map" className="text-blue-400 hover:underline">🗺️ Map</a>
+          {' '}·{' '}
+          <a href="/about" className="text-blue-400 hover:underline">About</a>
         </p>
       </div>
 
@@ -655,19 +654,26 @@ export default function TripPlanner({ data }: { data: ScheduleData }) {
       )}
 
       {/* Footer */}
-      <div className="mt-10 pt-4 border-t border-gray-100 flex justify-between items-center flex-wrap gap-3 text-xs text-gray-400">
-        <span>
-          Unofficial · Not affiliated with PATCO ·{' '}
-          <a href="https://ridepatco.org" className="text-blue-400 hover:underline">ridepatco.org</a>
-          {' '}·{' '}
-          <a href="/about" className="text-blue-400 hover:underline">About</a>
-        </span>
-        <a
-          href="mailto:cs635@drexel.edu?subject=PATCO Schedule Issue"
-          className="hover:text-gray-600 flex items-center gap-1"
-        >
-          ✉ Report an issue
-        </a>
+      <div className="mt-10 pt-4 border-t border-gray-100 text-xs text-gray-400 space-y-1">
+        <div className="flex justify-between items-center flex-wrap gap-3">
+          <span>
+            Unofficial · Not affiliated with PATCO ·{' '}
+            <a href="https://ridepatco.org" className="text-blue-400 hover:underline">ridepatco.org</a>
+          </span>
+          <a
+            href="mailto:cs635@drexel.edu?subject=PATCO Schedule Issue"
+            className="hover:text-gray-600 flex items-center gap-1"
+          >
+            ✉ Report an issue
+          </a>
+        </div>
+        <p>
+          Schedule data updated{' '}
+          {new Date(data.generated_at).toLocaleString('en-US', {
+            month: 'short', day: 'numeric',
+            hour: 'numeric', minute: '2-digit',
+          })}
+        </p>
       </div>
     </div>
   )

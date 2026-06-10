@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://patco-schedule-app.vercel.app/sitemap.xml

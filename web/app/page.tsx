@@ -54,5 +54,26 @@ export default async function HomePage() {
     );
   }
 
-  return <TripPlanner data={data} />;
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": "PATCO Schedule",
+    "url": "https://patco-schedule-app.vercel.app",
+    "description": "Unofficial PATCO Speedline schedule viewer for NJ to Philadelphia trains",
+    "potentialAction": {
+      "@type": "SearchAction",
+      "target": "https://patco-schedule-app.vercel.app/?from={station}",
+      "query-input": "required name=station",
+    },
+  };
+
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <TripPlanner data={data} />
+    </>
+  );
 }

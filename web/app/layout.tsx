@@ -2,8 +2,17 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "PATCO Speedline Schedule",
-  description: "Live PATCO Speedline train schedules between Philadelphia and Southern New Jersey",
+  title: "PATCO Schedule | NJ to Philadelphia Train Times",
+  description:
+    "PATCO Speedline train schedules between South Jersey and Philadelphia. Find next trains from Lindenwold, Haddonfield, Collingswood and all NJ stations.",
+  keywords: [
+    "PATCO schedule",
+    "PATCO train times",
+    "NJ to Philadelphia train",
+    "PATCO Speedline",
+    "Lindenwold to Philadelphia",
+    "South Jersey train",
+  ],
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
