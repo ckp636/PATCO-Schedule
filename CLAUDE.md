@@ -73,8 +73,8 @@ npm run dev   # http://localhost:3000
 
 ## PATCO Stations (NJ → Philadelphia)
 1. Lindenwold
-2. Woodcrest
-3. Ashland
+2. Ashland
+3. Woodcrest
 4. Haddonfield
 5. Westmont
 6. Collingswood
