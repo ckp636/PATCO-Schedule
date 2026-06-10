@@ -13,15 +13,16 @@ DOWNLOAD_DIR = Path(__file__).parent.parent / "data" / "audit"
 logger = logging.getLogger(__name__)
 
 
-def fetch_pdf(url: str = PATCO_SCHEDULE_URL) -> tuple[bytes, str]:
-    """Fetch PDF bytes and return (content, sha256_hex)."""
+def fetch_pdf(url: str = PATCO_SCHEDULE_URL) -> tuple[bytes, str, str]:
+    """Fetch PDF bytes and return (content, sha256_hex, final_url)."""
     logger.info("Fetching schedule PDF from %s", url)
     resp = requests.get(url, timeout=30)
     resp.raise_for_status()
     content = resp.content
     digest = hashlib.sha256(content).hexdigest()
-    logger.info("Downloaded %d bytes (sha256=%s)", len(content), digest[:12])
-    return content, digest
+    final_url = resp.url
+    logger.info("Downloaded %d bytes (sha256=%s, url=%s)", len(content), digest[:12], final_url)
+    return content, digest, final_url
 
 
 def save_pdf(content: bytes, digest: str) -> Path:

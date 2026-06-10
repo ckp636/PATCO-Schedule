@@ -245,21 +245,30 @@ def _parse_weekday_table(table: list[list[str | None]], service_type: str) -> li
 # Entry point
 # ---------------------------------------------------------------------------
 
-def parse_pdf(pdf_path: Path) -> Schedule:
+def parse_pdf(pdf_path: Path, source_url: str = '') -> Schedule:
     schedule = Schedule(effective_date='unknown')
     all_trips: list[Trip] = []
+
+    # Prefer date from the PDF filename/URL (e.g. PATCO_Timetable_2025-12-01.pdf)
+    url_date = re.search(r'(\d{4}-\d{2}-\d{2})', source_url)
+    if url_date:
+        schedule.effective_date = url_date.group(1)
 
     with pdfplumber.open(str(pdf_path)) as pdf:
         for page_num, page in enumerate(pdf.pages):
             text = page.extract_text() or ''
 
-            if page_num == 0:
-                # Date is stored mirrored: '5202/1/21' → '12/1/2025'
+            if page_num == 0 and schedule.effective_date == 'unknown':
+                # PDF text stores the date mirrored per slash-separated token.
+                # e.g. "EFFECTIVE 12/1/2025" appears as "5202/1/21 EVITCEFFE"
+                # Tokens: year_rev='5202', day='1', month_rev='21'
+                # → year=2025, month=12, day=1 → 2025-12-01
                 date_m = re.search(r'(\d{4}/\d{1,2}/\d{1,2})', text)
                 if date_m:
-                    raw = date_m.group(1)
-                    y_rev, m, d = raw.split('/')
-                    schedule.effective_date = f'{m}/{d}/{y_rev[::-1]}'
+                    y_rev, day_raw, mon_rev = date_m.group(1).split('/')
+                    schedule.effective_date = (
+                        f'{y_rev[::-1]}-{int(mon_rev[::-1]):02d}-{int(day_raw):02d}'
+                    )
 
             page_service = _detect_service_type(text)
             page_words = page.extract_words()

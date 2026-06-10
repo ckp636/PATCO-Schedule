@@ -28,7 +28,7 @@ LAST_DIGEST_FILE = Path(__file__).parent.parent / "data" / "audit" / ".last_dige
 def run(force: bool = False) -> int:
     # 1. Download
     try:
-        content, digest = scraper.fetch_pdf()
+        content, digest, final_url = scraper.fetch_pdf()
     except Exception as exc:
         logger.error("Failed to fetch PDF: %s", exc)
         return 1
@@ -44,7 +44,7 @@ def run(force: bool = False) -> int:
 
     # 3. Parse
     try:
-        schedule = schedule_parser.parse_pdf(pdf_path)
+        schedule = schedule_parser.parse_pdf(pdf_path, source_url=final_url)
     except Exception as exc:
         logger.error("Failed to parse PDF: %s", exc)
         storage.log_run(digest, schedule_parser.Schedule(effective_date="error"), changed=True, notes=str(exc))
