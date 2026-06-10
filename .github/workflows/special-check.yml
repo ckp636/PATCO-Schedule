@@ -1,15 +1,15 @@
-name: Daily Schedule Refresh
+name: Special Schedule Check
 
 on:
   schedule:
-    - cron: "0 6 * * *"   # 06:00 UTC = 02:00 ET daily
-  workflow_dispatch:        # allow manual trigger
+    - cron: "0 */6 * * *"   # every 6 hours
+  workflow_dispatch:
 
 jobs:
-  refresh:
+  check:
     runs-on: ubuntu-latest
     permissions:
-      contents: write       # needed to push updated data/public/schedule.json
+      contents: write
 
     steps:
       - name: Checkout
@@ -25,21 +25,20 @@ jobs:
       - name: Install dependencies
         run: pip install -r pipeline/requirements.txt
 
-      - name: Run pipeline
-        run: python pipeline/main.py
+      - name: Check special schedules
+        run: python pipeline/special_check_only.py
         working-directory: ${{ github.workspace }}
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 
-      - name: Commit updated schedule (if changed)
+      - name: Commit if changed
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/public/schedule.json data/audit/.last_digest
+          git add data/public/schedule.json
           if git diff --staged --quiet; then
-            echo "No changes to commit."
+            echo "No special schedule changes."
           else
-            git commit -m "chore: refresh schedule $(date -u +%Y-%m-%d)"
+            git commit -m "chore: update special schedules $(date -u +%Y-%m-%d)"
             git push
           fi
-# end of workflow

@@ -14,6 +14,7 @@ from pathlib import Path
 import scraper
 import parser as schedule_parser
 import storage
+import special_checker
 
 logging.basicConfig(
     level=logging.INFO,
@@ -49,6 +50,17 @@ def run(force: bool = False) -> int:
         logger.error("Failed to parse PDF: %s", exc)
         storage.log_run(digest, schedule_parser.Schedule(effective_date="error"), changed=True, notes=str(exc))
         return 1
+
+    # 3b. Enrich with special schedules from Claude
+    specials = special_checker.check_special_schedules()
+    schedule.special_dates = {
+        s["date"]: {"note": s["note"], "pdf_url": s["pdf_url"]}
+        for s in specials
+        if s.get("date")
+    }
+    timetable_info = special_checker.check_timetable_update()
+    if timetable_info:
+        logger.info("Timetable update detected: %s", timetable_info)
 
     # 4. Publish
     try:

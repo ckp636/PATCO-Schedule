@@ -88,6 +88,7 @@ class Trip:
 class Schedule:
     effective_date: str
     trips: list[Trip] = field(default_factory=list)
+    special_dates: dict = field(default_factory=dict)
 
 
 # ---------------------------------------------------------------------------

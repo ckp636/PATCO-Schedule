@@ -26,6 +26,7 @@ def write_public_json(schedule: Schedule) -> Path:
         "effective_date": schedule.effective_date,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "trips": [_trip_to_dict(t) for t in schedule.trips],
+        "special_dates": schedule.special_dates,
     }
     dest = PUBLIC_DIR / "schedule.json"
     dest.write_text(json.dumps(payload, indent=2))
