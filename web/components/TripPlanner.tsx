@@ -45,6 +45,16 @@ const PHILLY_STATIONS = new Set([
 const NJ_STATIONS    = STATIONS.filter(s => !PHILLY_STATIONS.has(s))
 const PHILLY_LIST    = STATIONS.filter(s =>  PHILLY_STATIONS.has(s))
 
+// Time-filter dropdown options every 10 minutes (value = HH:MM 24hr, label = 12hr)
+const TIME_OPTIONS = Array.from({ length: 144 }, (_, i) => {
+  const h = Math.floor(i * 10 / 60)
+  const m = (i * 10) % 60
+  return {
+    value: `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`,
+    label: `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`,
+  }
+})
+
 // ── Utilities ─────────────────────────────────────────────────────────────────
 const pad = (n: number) => String(n).padStart(2, '0')
 
@@ -493,22 +503,16 @@ export default function TripPlanner({ data }: { data: ScheduleData }) {
         >
           ▶ Ride now
         </button>
-        <div className="flex items-center gap-1.5 border border-gray-300 rounded-xl px-3 bg-white">
-          <span className="text-gray-400 text-sm select-none">🕐</span>
-          <input
-            type="time"
-            value={filterTime}
-            onChange={e => setFilterTime(e.target.value)}
-            className="py-3 text-sm bg-transparent outline-none text-gray-700 w-[90px]"
-          />
-          {filterTime && (
-            <button
-              onClick={() => setFilterTime('')}
-              className="text-gray-300 hover:text-gray-500 text-xs leading-none"
-              aria-label="Clear time filter"
-            >✕</button>
-          )}
-        </div>
+        <select
+          value={filterTime}
+          onChange={e => setFilterTime(e.target.value)}
+          className="border border-gray-300 rounded-xl px-3 py-3 text-sm bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="">🕐 Any time</option>
+          {TIME_OPTIONS.map(o => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </select>
       </div>
 
       {/* 4. Find trains + Clear */}
