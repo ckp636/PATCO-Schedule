@@ -45,14 +45,19 @@ const PHILLY_STATIONS = new Set([
 const NJ_STATIONS    = STATIONS.filter(s => !PHILLY_STATIONS.has(s))
 const PHILLY_LIST    = STATIONS.filter(s =>  PHILLY_STATIONS.has(s))
 
-// Time-filter dropdown options every 10 minutes (value = HH:MM 24hr, label = 12hr)
+// Time-filter dropdown options every 10 minutes, ordered noon-first so the list
+// opens near midday instead of requiring a long scroll from midnight.
+// value = HH:MM 24hr; special labels for Noon and Midnight.
 const TIME_OPTIONS = Array.from({ length: 144 }, (_, i) => {
-  const h = Math.floor(i * 10 / 60)
-  const m = (i * 10) % 60
-  return {
-    value: `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`,
-    label: `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`,
-  }
+  const totalMins = ((i + 72) * 10) % 1440   // offset 72 slots = 12 h → start at noon
+  const h = Math.floor(totalMins / 60)
+  const m = totalMins % 60
+  const value = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+  const label =
+    h === 12 && m === 0 ? 'Noon' :
+    h === 0  && m === 0 ? 'Midnight' :
+    `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`
+  return { value, label }
 })
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
