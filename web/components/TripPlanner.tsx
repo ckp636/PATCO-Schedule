@@ -176,11 +176,13 @@ function TrainList({
   from,
   to,
   isToday,
+  filterTime,
 }: {
   trains: Train[]
   from: string
   to: string
   isToday: boolean
+  filterTime: string
 }) {
   const [, setTick] = useState(0)
   useEffect(() => {
@@ -206,7 +208,7 @@ function TrainList({
   }
 
   const lastRow = rows[rows.length - 1]
-  if (isToday && toMins(lastRow.dep) < cur) {
+  if (isToday && !filterTime && toMins(lastRow.dep) < cur) {
     return (
       <div className="text-center py-6 bg-gray-50 rounded-xl border border-gray-200">
         <p className="font-medium text-gray-900 mb-1">🌙 Last train has departed</p>
@@ -220,16 +222,19 @@ function TrainList({
     )
   }
 
-  // Past: show only last 2; upcoming: first 2 get yellow highlight
-  const pastRows   = isToday ? rows.filter(r => toMins(r.dep) < cur - 1) : []
-  const futureRows = isToday ? rows.filter(r => toMins(r.dep) >= cur - 1) : rows
-  const visible    = [...pastRows.slice(-2), ...futureRows]
+  // Time filter takes priority; otherwise show last-2-past + all-future for today
+  const filterMins = toMins(filterTime || null)
+  const pastRows   = isToday && filterMins < 0 ? rows.filter(r => toMins(r.dep) < cur - 1) : []
+  const futureRows = isToday && filterMins < 0 ? rows.filter(r => toMins(r.dep) >= cur - 1) : rows
+  const visible    = filterMins >= 0
+    ? rows.filter(r => toMins(r.dep) >= filterMins)
+    : [...pastRows.slice(-2), ...futureRows]
 
   let upcomingCount = 0
 
   return (
     <div>
-      {/* Header row — grid-aligned with data columns */}
+      {/* Header row */}
       <div
         style={{ gridTemplateColumns: hasDest ? '1fr auto 1fr' : '1fr' }}
         className="grid items-center gap-3 px-4 mb-2"
@@ -243,57 +248,60 @@ function TrainList({
         )}
       </div>
       <div className="flex justify-end px-1 mb-2">
-        <span className="text-sm font-bold text-gray-900">{rows.length} trains</span>
+        <span className="text-sm font-bold text-gray-900">{visible.length} / {rows.length} trains</span>
       </div>
 
       <div className="border border-gray-200 rounded-xl overflow-hidden">
-        {visible.map((r, i) => {
-          const depM   = toMins(r.dep)
-          const isPast = isToday && depM < cur - 1
-          if (!isPast) upcomingCount++
-          const isYellow = isToday && !isPast && upcomingCount <= 2
-          const diff     = isToday && !isPast ? depM - cur : -1
-          const badge    = isPast ? 'passed'
-            : diff === 0 ? 'now'
-            : diff > 0
-              ? diff < 60 ? `${diff}m` : `${Math.floor(diff / 60)}h${diff % 60 ? ` ${diff % 60}m` : ''}`
-              : ''
+        {/* Scrollable rows — fixed height ~10 rows */}
+        <div className="overflow-y-auto max-h-[440px]">
+          {visible.map((r, i) => {
+            const depM   = toMins(r.dep)
+            const isPast = isToday && filterMins < 0 && depM < cur - 1
+            if (!isPast) upcomingCount++
+            const isYellow = isToday && filterMins < 0 && !isPast && upcomingCount <= 2
+            const diff     = isToday && !isPast ? depM - cur : -1
+            const badge    = isPast ? 'passed'
+              : diff === 0 ? 'now'
+              : diff > 0
+                ? diff < 60 ? `${diff}m` : `${Math.floor(diff / 60)}h${diff % 60 ? ` ${diff % 60}m` : ''}`
+                : ''
 
-          return (
-            <div
-              key={i}
-              style={{ gridTemplateColumns: hasDest ? '1fr auto 1fr' : '1fr' }}
-              className={[
-                'grid items-center gap-3 px-4 py-3 text-sm border-b border-gray-100 last:border-0',
-                isYellow ? 'bg-yellow-50 border-l-4 border-l-yellow-400'
-                  : isPast ? 'opacity-25 border-l-4 border-l-transparent'
-                  : 'border-l-4 border-l-transparent',
-              ].join(' ')}
-            >
-              <span className={[
-                'font-mono font-medium',
-                isYellow ? 'text-yellow-700' : 'text-gray-900',
-              ].join(' ')}>
-                {fmt12(r.dep)}
-                {badge && (
-                  <span className={[
-                    'ml-1.5 text-xs font-normal',
-                    isYellow ? 'text-yellow-500' : 'text-gray-400',
-                  ].join(' ')}>
-                    ({badge})
-                  </span>
+            return (
+              <div
+                key={i}
+                style={{ gridTemplateColumns: hasDest ? '1fr auto 1fr' : '1fr' }}
+                className={[
+                  'grid items-center gap-3 px-4 py-3 text-sm border-b border-gray-100 last:border-0',
+                  isYellow ? 'bg-yellow-50 border-l-4 border-l-yellow-400'
+                    : isPast ? 'opacity-25 border-l-4 border-l-transparent'
+                    : 'border-l-4 border-l-transparent',
+                ].join(' ')}
+              >
+                <span className={[
+                  'font-mono font-medium',
+                  isYellow ? 'text-yellow-700' : 'text-gray-900',
+                ].join(' ')}>
+                  {fmt12(r.dep)}
+                  {badge && (
+                    <span className={[
+                      'ml-1.5 text-xs font-normal',
+                      isYellow ? 'text-yellow-500' : 'text-gray-400',
+                    ].join(' ')}>
+                      ({badge})
+                    </span>
+                  )}
+                </span>
+
+                {hasDest && (
+                  <>
+                    <span className="text-base text-gray-300">→</span>
+                    <span className="font-mono text-gray-500">{fmt12(r.arr)}</span>
+                  </>
                 )}
-              </span>
-
-              {hasDest && (
-                <>
-                  <span className="text-base text-gray-300">→</span>
-                  <span className="font-mono text-gray-500">{fmt12(r.arr)}</span>
-                </>
-              )}
-            </div>
-          )
-        })}
+              </div>
+            )
+          })}
+        </div>
       </div>
     </div>
   )
@@ -310,6 +318,7 @@ export default function TripPlanner({ data }: { data: ScheduleData }) {
   const [showTo,       setShowTo]       = useState(false)
   const [warnPhilly,   setWarnPhilly]   = useState(false)
   const [warnNJ,       setWarnNJ]       = useState(false)
+  const [filterTime,   setFilterTime]   = useState('')
   const [searched,     setSearched]     = useState(false)
 
   // Direction is fully derived from the chosen station — no separate state needed
@@ -345,7 +354,8 @@ export default function TripPlanner({ data }: { data: ScheduleData }) {
 
   const clearAll = () => {
     setFrom(''); setTo('')
-    setShowTo(false); setWarnPhilly(false); setWarnNJ(false); setSearched(false)
+    setShowTo(false); setWarnPhilly(false); setWarnNJ(false)
+    setFilterTime(''); setSearched(false)
     setSelectedDate(new Date(todayDate))
   }
 
@@ -475,13 +485,31 @@ export default function TripPlanner({ data }: { data: ScheduleData }) {
         {selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
       </p>
 
-      {/* 3. Ride Now */}
-      <button
-        onClick={rideNow}
-        className="w-full py-3 mb-4 bg-green-50 border border-green-300 text-green-800 font-semibold rounded-xl hover:bg-green-100 transition-colors"
-      >
-        ▶ Ride now
-      </button>
+      {/* 3. Ride Now + Time filter */}
+      <div className="flex items-stretch gap-3 mb-4">
+        <button
+          onClick={rideNow}
+          className="flex-1 py-3 bg-green-50 border border-green-300 text-green-800 font-semibold rounded-xl hover:bg-green-100 transition-colors"
+        >
+          ▶ Ride now
+        </button>
+        <div className="flex items-center gap-1.5 border border-gray-300 rounded-xl px-3 bg-white">
+          <span className="text-gray-400 text-sm select-none">🕐</span>
+          <input
+            type="time"
+            value={filterTime}
+            onChange={e => setFilterTime(e.target.value)}
+            className="py-3 text-sm bg-transparent outline-none text-gray-700 w-[90px]"
+          />
+          {filterTime && (
+            <button
+              onClick={() => setFilterTime('')}
+              className="text-gray-300 hover:text-gray-500 text-xs leading-none"
+              aria-label="Clear time filter"
+            >✕</button>
+          )}
+        </div>
+      </div>
 
       {/* 4. Find trains + Clear */}
       <div className="flex gap-3 mb-6">
@@ -528,7 +556,7 @@ export default function TripPlanner({ data }: { data: ScheduleData }) {
               </p>
             </div>
           ) : (
-            <TrainList trains={trains} from={from} to={to} isToday={isToday} />
+            <TrainList trains={trains} from={from} to={to} isToday={isToday} filterTime={filterTime} />
           )}
         </div>
       )}
