@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Analytics } from "@vercel/analytics/next";
+import Navbar from "../components/Navbar";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -19,8 +20,14 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
+      <head>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css" />
+      </head>
       <body className="min-h-screen bg-white text-gray-900 antialiased">
-        <main className="px-4 py-6">{children}</main>
+        <div className="max-w-xl mx-auto px-4 pt-6">
+          <Navbar />
+        </div>
+        <main>{children}</main>
         <Analytics />
       </body>
     </html>

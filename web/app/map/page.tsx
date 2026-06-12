@@ -1,5 +1,4 @@
 import type { Metadata } from 'next'
-import Link from 'next/link'
 import StationMapClient from '../../components/StationMapClient'
 
 export const metadata: Metadata = {
@@ -9,14 +8,7 @@ export const metadata: Metadata = {
 
 export default function MapPage() {
   return (
-    <div className="max-w-2xl mx-auto">
-      <Link href="/" className="text-sm text-blue-500 hover:underline mb-6 inline-block">
-        ← Back to schedule
-      </Link>
-
-      <h1 className="text-xl font-semibold text-gray-900 mb-4">
-        🗺️ PATCO Speedline Stations
-      </h1>
+    <div className="max-w-xl mx-auto px-4 pt-4 pb-6">
 
       {/* Official PATCO line map */}
       <div className="mb-4 rounded-xl overflow-hidden border border-gray-200 shadow-sm bg-white">
@@ -35,7 +27,7 @@ export default function MapPage() {
         Click any station to view its schedule · Unofficial viewer ·{' '}
         <a
           href="https://ridepatco.org"
-          className="text-blue-400 hover:underline"
+          className="text-[#d11241] hover:underline"
           target="_blank"
           rel="noopener noreferrer"
         >

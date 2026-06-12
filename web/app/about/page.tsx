@@ -9,26 +9,7 @@ export const metadata: Metadata = {
 
 export default function AboutPage() {
   return (
-    <div className="max-w-xl mx-auto px-4 py-8">
-
-      {/* Header */}
-      <div className="flex items-center gap-3 mb-8 pb-4 border-b border-gray-200">
-        <span className="text-2xl">🚇</span>
-        <div>
-          <h1 className="text-base font-semibold text-gray-900">PATCO Speedline</h1>
-          <p className="text-xs text-gray-400">
-            Unofficial viewer ·{" "}
-            <a
-              href="https://ridepatco.org"
-              className="text-blue-500 hover:underline"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              ridepatco.org
-            </a>
-          </p>
-        </div>
-      </div>
+    <div className="max-w-xl mx-auto px-4 pt-4 pb-8">
 
       {/* Name + title */}
       <div className="mb-6">
@@ -58,7 +39,7 @@ export default function AboutPage() {
           the{" "}
           <a
             href="https://www.ridepatco.org/schedules/schedules.asp"
-            className="text-blue-600 hover:underline"
+            className="text-[#d11241] hover:underline"
             target="_blank"
             rel="noopener noreferrer"
           >
@@ -75,13 +56,13 @@ export default function AboutPage() {
       </div>
 
       {/* CTA */}
-      <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl">
-        <p className="text-sm text-blue-900 font-medium mb-1">
+      <div className="p-4 bg-[#FCEBEB] border border-[#d11241]/30 rounded-xl">
+        <p className="text-sm text-[#a50e33] font-medium mb-1">
           If you find this useful, I&apos;d love to hear from you!
         </p>
         <a
           href="mailto:cs635@drexel.edu"
-          className="text-sm text-blue-600 hover:underline font-mono"
+          className="text-sm text-[#d11241] hover:underline font-mono"
         >
           cs635@drexel.edu
         </a>

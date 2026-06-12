@@ -154,7 +154,7 @@ function TimeScrollPicker({ value, onChange }: { value: string; onChange: (v: st
                 className={[
                   'flex items-center px-4 cursor-pointer text-sm select-none',
                   o.value === value
-                    ? 'bg-blue-50 text-blue-700 font-semibold'
+                    ? 'bg-[#FCEBEB] text-[#d11241] font-semibold'
                     : 'text-gray-700 hover:bg-gray-50',
                 ].join(' ')}
               >
@@ -227,7 +227,7 @@ function CalendarGrid({
               className={[
                 'relative text-center py-2 rounded-lg text-sm font-medium transition-colors',
                 isSelected
-                  ? 'bg-blue-600 text-white'
+                  ? 'bg-[#d11241] text-white'
                   : isToday
                   ? 'border-2 border-gray-800 text-gray-900 hover:bg-gray-100'
                   : 'text-gray-700 hover:bg-gray-100',
@@ -360,20 +360,20 @@ function TrainList({
                 style={{ gridTemplateColumns: hasDest ? '1fr auto 1fr' : '1fr' }}
                 className={[
                   'grid items-center gap-3 px-4 py-3 text-sm border-b border-gray-100 last:border-0',
-                  isYellow ? 'bg-yellow-50 border-l-4 border-l-yellow-400'
+                  isYellow ? 'bg-[#FCEBEB] border-l-4 border-l-[#d11241]'
                     : isPast ? 'opacity-25 border-l-4 border-l-transparent'
                     : 'border-l-4 border-l-transparent',
                 ].join(' ')}
               >
                 <span className={[
                   'font-mono font-medium',
-                  isYellow ? 'text-yellow-700' : 'text-gray-900',
+                  isYellow ? 'text-[#a50e33]' : 'text-gray-900',
                 ].join(' ')}>
                   {fmt12(r.dep)}
                   {badge && (
                     <span className={[
                       'ml-1.5 text-xs font-normal',
-                      isYellow ? 'text-yellow-500' : 'text-gray-400',
+                      isYellow ? 'text-[#a50e33]' : 'text-gray-400',
                     ].join(' ')}>
                       ({badge})
                     </span>
@@ -436,7 +436,15 @@ export default function TripPlanner({ data }: { data: ScheduleData }) {
     setWarnPhilly(isPhilly)
     setWarnNJ(isNJ)
     setWarnNoStation(false)
+    if (val) localStorage.setItem('patco_from', val)
+    else localStorage.removeItem('patco_from')
   }
+
+  // Restore saved station on mount
+  useEffect(() => {
+    const saved = localStorage.getItem('patco_from')
+    if (saved && STATIONS.includes(saved)) onFromChange(saved)
+  }, [])
 
   const selectDate = (d: Date) => { setSelectedDate(d); setSearched(false) }
 
@@ -451,6 +459,7 @@ export default function TripPlanner({ data }: { data: ScheduleData }) {
     setShowTo(false); setWarnPhilly(false); setWarnNJ(false)
     setFilterTime(''); setWarnNoStation(false); setSearched(false)
     setSelectedDate(new Date(todayDate))
+    localStorage.removeItem('patco_from')
   }
 
   const rideNow = () => {
@@ -462,28 +471,7 @@ export default function TripPlanner({ data }: { data: ScheduleData }) {
   }
 
   return (
-    <div className="max-w-xl mx-auto px-4 py-6">
-
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-200">
-        <div className="flex items-center gap-3">
-          <span className="text-2xl" aria-hidden>🚇</span>
-          <div>
-            <h1 className="text-base font-semibold text-gray-900">PATCO Speedline</h1>
-            <p className="text-xs text-gray-400">
-              Unofficial viewer ·{' '}
-              <a href="https://ridepatco.org" className="text-blue-500 hover:underline" target="_blank" rel="noopener noreferrer">
-                ridepatco.org
-              </a>
-            </p>
-          </div>
-        </div>
-        <p className="text-xs text-gray-400 flex items-center gap-2">
-          <a href="/map" className="text-blue-400 hover:underline">🗺️ Map</a>
-          {' '}·{' '}
-          <a href="/about" className="text-blue-400 hover:underline">About</a>
-        </p>
-      </div>
+    <div className="max-w-xl mx-auto px-4 pt-4 pb-6">
 
       {/* 1. Search card (From / To) */}
       <div className="bg-white border border-gray-200 rounded-xl p-4 mb-4 shadow-sm space-y-4">
@@ -496,7 +484,7 @@ export default function TripPlanner({ data }: { data: ScheduleData }) {
           <select
             value={from}
             onChange={e => onFromChange(e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#d11241]"
           >
             <option value="">Select departure station</option>
             <optgroup label="NJ Stations (Westbound → Philadelphia)">
@@ -524,7 +512,7 @@ export default function TripPlanner({ data }: { data: ScheduleData }) {
 
             {/* NJ warning */}
             {warnNJ && (
-              <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-800">
+              <div className="flex items-start gap-2 p-3 bg-[#FCEBEB] border border-[#d11241]/30 rounded-lg text-xs text-[#a50e33]">
                 <span className="shrink-0 mt-0.5">⚠️</span>
                 <span>
                   Starting from New Jersey — defaulted to{' '}
@@ -550,7 +538,7 @@ export default function TripPlanner({ data }: { data: ScheduleData }) {
                 <select
                   value={to}
                   onChange={e => setTo(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#d11241]"
                 >
                   <option value="">Any destination</option>
                   {toStations.map(s => <option key={s} value={s}>{s}</option>)}
@@ -564,7 +552,7 @@ export default function TripPlanner({ data }: { data: ScheduleData }) {
       {/* 2. Calendar */}
       <section className="mb-5">
         <h2 className="text-sm font-semibold text-gray-600 mb-3">
-          📅{' '}
+          <i className="ti ti-calendar" />{' '}
           {selectedDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
         </h2>
         <CalendarGrid
@@ -584,9 +572,9 @@ export default function TripPlanner({ data }: { data: ScheduleData }) {
       <div className="flex items-stretch gap-3 mb-4">
         <button
           onClick={rideNow}
-          className="flex-1 py-3 bg-green-50 border border-green-300 text-green-800 font-semibold rounded-xl hover:bg-green-100 transition-colors"
+          className="flex-1 py-3 bg-[#d11241] text-white font-medium text-sm rounded-xl flex items-center justify-center gap-2 hover:bg-[#a50e33] transition-colors"
         >
-          ▶ Ride now
+          <i className="ti ti-player-play" /> Ride now
         </button>
         <TimeScrollPicker value={filterTime} onChange={setFilterTime} />
       </div>
@@ -595,15 +583,15 @@ export default function TripPlanner({ data }: { data: ScheduleData }) {
       <div className="flex gap-3 mb-2">
         <button
           onClick={doSearch}
-          className="flex-1 py-2.5 bg-blue-50 border border-blue-300 text-blue-700 font-semibold rounded-xl hover:bg-blue-100 transition-colors"
+          className="flex-1 py-2.5 bg-transparent border-2 border-[#d11241] text-[#d11241] font-medium rounded-xl flex items-center justify-center gap-2 hover:bg-[#FCEBEB] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          🔍 Find trains
+          <i className="ti ti-search" /> Find trains
         </button>
         <button
           onClick={clearAll}
-          className="px-5 py-2.5 border border-gray-200 text-gray-500 rounded-xl hover:bg-gray-50 transition-colors text-sm"
+          className="px-5 py-2.5 border border-gray-200 text-gray-400 rounded-xl hover:bg-gray-50 transition-colors text-sm flex items-center gap-1"
         >
-          ✕ Clear
+          <i className="ti ti-x" /> Clear
         </button>
       </div>
 
@@ -624,7 +612,7 @@ export default function TripPlanner({ data }: { data: ScheduleData }) {
                 <span className="text-amber-700"> · {specialForDate.note}</span>
                 <a
                   href={specialForDate.pdf_url}
-                  className="ml-2 text-xs text-blue-600 hover:underline"
+                  className="ml-2 text-xs text-[#d11241] hover:underline"
                   target="_blank" rel="noopener noreferrer"
                 >
                   View PDF ↗
@@ -648,7 +636,6 @@ export default function TripPlanner({ data }: { data: ScheduleData }) {
 
       {!searched && (
         <div className="text-center py-10 text-gray-400">
-          <div className="text-3xl mb-2 opacity-30">📍</div>
           <p className="text-sm">Select a date and departure station, then tap Find trains</p>
         </div>
       )}
@@ -658,7 +645,7 @@ export default function TripPlanner({ data }: { data: ScheduleData }) {
         <div className="flex justify-between items-center flex-wrap gap-3">
           <span>
             Unofficial · Not affiliated with PATCO ·{' '}
-            <a href="https://ridepatco.org" className="text-blue-400 hover:underline">ridepatco.org</a>
+            <a href="https://ridepatco.org" className="text-[#d11241] hover:underline">ridepatco.org</a>
           </span>
           <a
             href="mailto:cs635@drexel.edu?subject=PATCO Schedule Issue"
