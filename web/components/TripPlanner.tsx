@@ -121,7 +121,7 @@ function TimeScrollPicker({ value, onChange }: { value: string; onChange: (v: st
         onClick={() => setOpen(o => !o)}
         className="h-full border border-gray-300 rounded-xl px-3 text-sm bg-white text-gray-700 flex items-center gap-1.5 whitespace-nowrap min-w-[110px]"
       >
-        <span className="text-gray-400 text-base">🕐</span>
+        <i className="ti ti-clock text-sm" aria-hidden="true"></i>
         <span className="flex-1 text-left">{selectedLabel}</span>
         {value ? (
           <span
@@ -265,12 +265,14 @@ function TrainList({
   to,
   isToday,
   filterTime,
+  dateLabel,
 }: {
   trains: Train[]
   from: string
   to: string
   isToday: boolean
   filterTime: string
+  dateLabel: string
 }) {
   const [, setTick] = useState(0)
   useEffect(() => {
@@ -322,7 +324,12 @@ function TrainList({
 
   return (
     <div>
-      {/* Header row */}
+      {/* Date + train count row */}
+      <div className="flex items-center justify-between px-1 mb-1">
+        <span className="text-xs text-gray-400">{dateLabel}</span>
+        <span className="text-xs font-medium text-gray-500">{rows.length} trains</span>
+      </div>
+      {/* Station name row */}
       <div
         style={{ gridTemplateColumns: hasDest ? '1fr auto 1fr' : '1fr' }}
         className="grid items-center gap-3 px-4 mb-2"
@@ -334,9 +341,6 @@ function TrainList({
             <span className="text-sm font-bold text-gray-900 uppercase tracking-wide">{to}</span>
           </>
         )}
-      </div>
-      <div className="flex justify-end px-1 mb-2">
-        <span className="text-sm font-bold text-gray-900">{visible.length} / {rows.length} trains</span>
       </div>
 
       <div className="border border-gray-200 rounded-xl overflow-hidden">
@@ -500,7 +504,7 @@ export default function TripPlanner({ data }: { data: ScheduleData }) {
           <>
             {/* Philly warning */}
             {warnPhilly && (
-              <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800">
+              <div className="flex items-start gap-2 p-3 bg-[#FCEBEB] border border-[#d11241]/20 rounded-lg text-xs text-[#a50e33]">
                 <span className="shrink-0 mt-0.5">⚠️</span>
                 <span>
                   Starting from Philadelphia — defaulted to{' '}
@@ -563,10 +567,6 @@ export default function TripPlanner({ data }: { data: ScheduleData }) {
         />
       </section>
 
-      <p className="text-xs text-gray-500 mb-5">
-        {isToday && 'Today · '}
-        {selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-      </p>
 
       {/* 3. Ride Now + Time filter */}
       <div className="flex items-stretch gap-3 mb-4">
@@ -629,7 +629,14 @@ export default function TripPlanner({ data }: { data: ScheduleData }) {
               </p>
             </div>
           ) : (
-            <TrainList trains={trains} from={from} to={to} isToday={isToday} filterTime={filterTime} />
+            <TrainList
+              trains={trains}
+              from={from}
+              to={to}
+              isToday={isToday}
+              filterTime={filterTime}
+              dateLabel={`${isToday ? 'Today · ' : ''}${selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}`}
+            />
           )}
         </div>
       )}
