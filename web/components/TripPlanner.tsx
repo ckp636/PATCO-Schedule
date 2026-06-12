@@ -425,7 +425,7 @@ export default function TripPlanner({ data }: { data: ScheduleData }) {
   const isToday = isSameDay(selectedDate, todayDate)
   const dayType = getDayType(selectedDate)
   const trains  = data.schedule[dayType][dir] ?? []
-  const isNoSvc = isToday && nowMins() < 270
+  const isNoSvc = isToday && nowMins() < 270 && dayType === 'weekday'
 
   const onFromChange = (val: string) => {
     const isPhilly = !!val && PHILLY_STATIONS.has(val)
