@@ -5,11 +5,25 @@ export const metadata: Metadata = {
   title: "About · PATCO Schedule",
   description:
     "Built by a Drexel AI student who commutes weekly between South Jersey and Philadelphia.",
+  alternates: { canonical: "https://patco-schedule.vercel.app/about" },
+  openGraph: {
+    title: "About · PATCO Schedule",
+    description: "Built by a Drexel AI student who commutes weekly between South Jersey and Philadelphia.",
+    url: "https://patco-schedule.vercel.app/about",
+    siteName: "PATCO Schedule",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "About · PATCO Schedule",
+    description: "Built by a Drexel AI student who commutes weekly between South Jersey and Philadelphia.",
+  },
 };
 
 export default function AboutPage() {
   return (
     <div className="max-w-xl mx-auto px-4 pt-4 pb-8">
+      <h1 className="sr-only">About PATCO Schedule</h1>
 
       {/* Name + title */}
       <div className="mb-6">

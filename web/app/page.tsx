@@ -56,19 +56,23 @@ export default async function HomePage() {
 
   const jsonLd = {
     "@context": "https://schema.org",
-    "@type": "WebSite",
+    "@type": "WebApplication",
     "name": "PATCO Schedule",
-    "url": "https://patco-schedule-app.vercel.app",
+    "url": "https://patco-schedule.vercel.app",
+    "applicationCategory": "TravelApplication",
     "description": "Unofficial PATCO Speedline schedule viewer for NJ to Philadelphia trains",
+    "operatingSystem": "Any",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
     "potentialAction": {
       "@type": "SearchAction",
-      "target": "https://patco-schedule-app.vercel.app/?from={station}",
+      "target": "https://patco-schedule.vercel.app/?from={station}",
       "query-input": "required name=station",
     },
   };
 
   return (
     <>
+      <h1 className="sr-only">PATCO Speedline Schedule</h1>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}

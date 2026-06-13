@@ -1,6 +1,6 @@
 import type { MetadataRoute } from 'next'
 
-const BASE_URL = 'https://patco-schedule-app.vercel.app'
+const BASE_URL = 'https://patco-schedule.vercel.app'
 
 const ROUTE_SLUGS = [
   'lindenwold-to-philadelphia',
